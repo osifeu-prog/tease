@@ -1,12 +1,32 @@
+# app/database.py
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
+from app import models
 
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+# מנוע SQLAlchemy
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+)
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Session לכל בקשה / שימוש
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+# פונקציה לעבודה בבוט: יצירת Session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# יצירת הטבלאות אם הן לא קיימות
+models.Base.metadata.create_all(bind=engine)
