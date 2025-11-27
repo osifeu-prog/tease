@@ -7,22 +7,27 @@ from app import models
 def get_or_create_user(db: Session, telegram_id: int, username: str | None):
     user = db.query(models.User).filter(models.User.telegram_id == telegram_id).first()
     if user:
-        if username and user.username != username:
+        # עדכון username אם השתנה
+        if username is not None and user.username != username:
             user.username = username
             db.add(user)
             db.commit()
             db.refresh(user)
         return user
 
-    user = models.User(telegram_id=telegram_id, username=username, balance_slh=Decimal("0"))
+    user = models.User(
+        telegram_id=telegram_id,
+        username=username,
+        balance_slh=Decimal("0"),
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
 
 
-def set_bnb_address(db: Session, user: models.User, address: str):
-    user.bnb_address = address
+def set_bnb_address(db: Session, user: models.User, addr: str) -> models.User:
+    user.bnb_address = addr
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -33,19 +38,13 @@ def change_balance(
     db: Session,
     user: models.User,
     delta_slh: float | Decimal,
-    tx_type: str = "admin_credit",
-    from_user: int | None = None,
-    to_user: int | None = None,
-):
+    tx_type: str,
+    from_user: int | None,
+    to_user: int | None,
+) -> models.Transaction:
     amount = Decimal(str(delta_slh))
-    if user.balance_slh is None:
-        user.balance_slh = Decimal("0")
-    new_balance = user.balance_slh + amount
-    if new_balance < 0:
-        raise ValueError("Insufficient balance")
-
+    new_balance = (user.balance_slh or Decimal("0")) + amount
     user.balance_slh = new_balance
-    db.add(user)
 
     tx = models.Transaction(
         from_user=from_user,
@@ -53,6 +52,7 @@ def change_balance(
         amount_slh=amount,
         tx_type=tx_type,
     )
+    db.add(user)
     db.add(tx)
     db.commit()
     db.refresh(user)
@@ -65,27 +65,29 @@ def internal_transfer(
     sender: models.User,
     receiver: models.User,
     amount_slh: float | Decimal,
-):
+) -> models.Transaction:
     amount = Decimal(str(amount_slh))
-    if sender.balance_slh is None:
-        sender.balance_slh = Decimal("0")
-    if sender.balance_slh < amount:
-        raise ValueError("Insufficient balance for transfer")
 
-    sender.balance_slh -= amount
-    if receiver.balance_slh is None:
-        receiver.balance_slh = Decimal("0")
-    receiver.balance_slh += amount
+    if amount <= 0:
+        raise ValueError("Amount must be positive")
 
-    db.add(sender)
-    db.add(receiver)
+    sender_balance = sender.balance_slh or Decimal("0")
+    if sender_balance < amount:
+        raise ValueError("Insufficient balance for this transfer.")
+
+    receiver_balance = receiver.balance_slh or Decimal("0")
+
+    sender.balance_slh = sender_balance - amount
+    receiver.balance_slh = receiver_balance + amount
 
     tx = models.Transaction(
         from_user=sender.telegram_id,
         to_user=receiver.telegram_id,
         amount_slh=amount,
-        tx_type="internal_transfer",
+        tx_type="transfer",
     )
+    db.add(sender)
+    db.add(receiver)
     db.add(tx)
     db.commit()
     db.refresh(sender)
