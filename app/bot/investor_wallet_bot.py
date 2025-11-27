@@ -48,6 +48,8 @@ class InvestorWalletBot:
         self.application.add_handler(CommandHandler("balance", self.cmd_balance))
         self.application.add_handler(CommandHandler("transfer", self.cmd_transfer))
         self.application.add_handler(CommandHandler("whoami", self.cmd_whoami))
+        self.application.add_handler(CommandHandler("summary", self.cmd_summary))
+        self.application.add_handler(CommandHandler("docs", self.cmd_docs))
 
         # Admin-only command
         self.application.add_handler(CommandHandler("admin_credit", self.cmd_admin_credit))
@@ -85,6 +87,16 @@ class InvestorWalletBot:
             )
         finally:
             db.close()
+
+    def _slh_price_nis(self) -> Decimal:
+        """
+        מחזיר את מחיר ה-SLH בניס (ברירת מחדל: 444) כ-Decimal,
+        כדי שלא יהיו בעיות טייפים.
+        """
+        try:
+            return Decimal(str(settings.SLH_PRICE_NIS))
+        except Exception:
+            return Decimal("444")
 
     async def _send_main_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
@@ -144,6 +156,7 @@ class InvestorWalletBot:
 
         text_lines.append("3) Use /wallet to view full wallet details and ecosystem links.")
         text_lines.append("4) Use /whoami to see your ID, username and wallet status.")
+        text_lines.append("5) Use /summary for a full investor dashboard.")
 
         await update.message.reply_text("\n".join(text_lines))
 
@@ -151,11 +164,13 @@ class InvestorWalletBot:
         text = (
             "SLH Wallet Bot – Help\n\n"
             "/start       – Intro and onboarding\n"
+            "/summary     – Full investor dashboard (wallet + balance + profile)\n"
             "/wallet      – Wallet details and ecosystem links\n"
             "/link_wallet – Link your personal BNB (BSC) address\n"
             "/balance     – View your SLH off-chain balance\n"
             "/transfer    – Internal off-chain transfer to another user\n"
-            "/whoami      – See your Telegram ID, username and wallet status\n\n"
+            "/whoami      – See your Telegram ID, username and wallet status\n"
+            "/docs        – Open the official SLH investor docs\n\n"
             "At this stage there is no redemption of principal – "
             "only usage of SLH units inside the ecosystem.\n"
             "BNB and gas remain in your own wallet via external providers."
@@ -184,7 +199,7 @@ class InvestorWalletBot:
         lines.append("SLH token address:")
         lines.append(f"{token_addr}")
         lines.append("")
-        lines.append(f"Each SLH nominally represents {settings.SLH_PRICE_NIS:.0f} ILS.")
+        lines.append(f"Each SLH nominally represents {self._slh_price_nis():.0f} ILS.")
 
         if settings.BSC_SCAN_BASE and addr and not addr.startswith("<"):
             lines.append("")
@@ -209,6 +224,39 @@ class InvestorWalletBot:
         await update.message.reply_text("\n".join(lines))
 
     async def cmd_link_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        שני מצבים:
+        1) /link_wallet              -> שואל אותך לשלוח כתובת בהודעה הבאה
+        2) /link_wallet 0xABC...     -> שומר מיד את הכתובת מהפקודה
+        """
+        tg_user = update.effective_user
+        user = self._ensure_user(update)
+
+        # אם נשלחה כתובת בתוך הפקודה עצמה
+        if context.args:
+            addr = context.args[0].strip()
+            if not addr.startswith("0x") or len(addr) < 20:
+                await update.message.reply_text(
+                    "Address seems invalid. Usage: /link_wallet 0xyouraddress or send the address after /link_wallet."
+                )
+                return
+
+            db = self._db()
+            try:
+                user = crud.get_or_create_user(
+                    db, telegram_id=tg_user.id, username=tg_user.username
+                )
+                crud.set_bnb_address(db, user, addr)
+                await update.message.reply_text(
+                    f"Your BNB address was saved:\n{addr}"
+                )
+            finally:
+                db.close()
+
+            context.user_data["state"] = None
+            return
+
+        # מצב רגיל – מבקש כתובת בהודעה הבאה
         self._ensure_user(update)
         context.user_data["state"] = STATE_AWAITING_BNB_ADDRESS
         await update.message.reply_text(
@@ -223,14 +271,25 @@ class InvestorWalletBot:
                 db, telegram_id=tg_user.id, username=tg_user.username
             )
             balance = user.balance_slh or Decimal("0")
+            price = self._slh_price_nis()
+            value_nis = balance * price
 
-            text = (
-                "SLH Off-Chain Balance\n\n"
-                f"Current balance: {balance:.4f} SLH\n\n"
-                "This reflects allocations recorded for you inside the system.\n"
+            text_lines = []
+            text_lines.append("SLH Off-Chain Balance")
+            text_lines.append("")
+            text_lines.append(f"Current balance: {balance:.4f} SLH")
+            text_lines.append(
+                f"Nominal value: {value_nis:.2f} ILS (at {price:.0f} ILS per SLH)"
+            )
+            text_lines.append("")
+            text_lines.append(
+                "This reflects allocations recorded for you inside the system."
+            )
+            text_lines.append(
                 "There is no redemption yet – only future usage inside the ecosystem."
             )
-            await update.message.reply_text(text)
+
+            await update.message.reply_text("\n".join(text_lines))
         finally:
             db.close()
 
@@ -254,7 +313,9 @@ class InvestorWalletBot:
             lines.append("Your SLH Investor Profile")
             lines.append("")
             lines.append(f"Telegram ID: {tg_user.id}")
-            lines.append(f"Username: @{tg_user.username}" if tg_user.username else "Username: N/A")
+            lines.append(
+                f"Username: @{tg_user.username}" if tg_user.username else "Username: N/A"
+            )
             lines.append(
                 f"BNB address: {user.bnb_address or 'Not linked yet (use /link_wallet)'}"
             )
@@ -267,6 +328,92 @@ class InvestorWalletBot:
             await update.message.reply_text("\n".join(lines))
         finally:
             db.close()
+
+    async def cmd_summary(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        דשבורד משקיע במסך אחד:
+        - פרופיל
+        - ארנק
+        - מאזן SLH + ערך בש״ח
+        - לינקים חשובים
+        """
+        db = self._db()
+        try:
+            tg_user = update.effective_user
+            user = crud.get_or_create_user(
+                db, telegram_id=tg_user.id, username=tg_user.username
+            )
+            balance = user.balance_slh or Decimal("0")
+            price = self._slh_price_nis()
+            value_nis = balance * price
+
+            addr = settings.COMMUNITY_WALLET_ADDRESS or "<community wallet not set>"
+            token_addr = settings.SLH_TOKEN_ADDRESS or "<SLH token not set>"
+            user_addr = (
+                user.bnb_address
+                or "Not linked yet (use /link_wallet)."
+            )
+
+            lines = []
+            lines.append("SLH Investor Dashboard")
+            lines.append("")
+            lines.append("Profile:")
+            lines.append(f"- Telegram ID: {tg_user.id}")
+            lines.append(
+                f"- Username: @{tg_user.username}" if tg_user.username else "- Username: N/A"
+            )
+            lines.append("")
+            lines.append("Wallets:")
+            lines.append(f"- Your BNB (BSC): {user_addr}")
+            lines.append(f"- Community wallet: {addr}")
+            lines.append(f"- SLH token: {token_addr}")
+            lines.append("")
+            lines.append("Balance (Off-Chain System Ledger):")
+            lines.append(f"- SLH: {balance:.4f} SLH")
+            lines.append(f"- Nominal ILS value: {value_nis:.2f} ILS")
+            lines.append("")
+            if settings.BSC_SCAN_BASE and addr and not addr.startswith("<"):
+                lines.append("On BscScan:")
+                lines.append(
+                    f"- Community wallet: {settings.BSC_SCAN_BASE.rstrip('/')}/address/{addr}"
+                )
+            if settings.BSC_SCAN_BASE and token_addr and not token_addr.startswith("<"):
+                lines.append(
+                    f"- SLH token: {settings.BSC_SCAN_BASE.rstrip('/')}/token/{token_addr}"
+                )
+            if settings.DOCS_URL:
+                lines.append("")
+                lines.append(f"Investor Docs: {settings.DOCS_URL}")
+            lines.append("")
+            lines.append("Key commands: /wallet, /balance, /transfer, /docs, /help")
+
+            await update.message.reply_text("\n".join(lines))
+        finally:
+            db.close()
+
+    async def cmd_docs(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        קישור למסמכי ה-DOCS הרשמיים (README למשקיעים).
+        """
+        if not settings.DOCS_URL:
+            await update.message.reply_text(
+                "Investor docs URL is not configured yet. Please contact the SLH team."
+            )
+            return
+
+        text_lines = []
+        text_lines.append("SLH Investor Documentation")
+        text_lines.append("")
+        text_lines.append(
+            "The full investor deck, ecosystem overview and technical docs are available here:"
+        )
+        text_lines.append(settings.DOCS_URL)
+        text_lines.append("")
+        text_lines.append(
+            "You can share this link with potential strategic partners and investors."
+        )
+
+        await update.message.reply_text("\n".join(text_lines))
 
     async def cmd_transfer(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self._ensure_user(update)
@@ -353,7 +500,7 @@ class InvestorWalletBot:
                 db, telegram_id=tg_user.id, username=tg_user.username
             )
 
-            # BNB address
+            # BNB address (flow שבו שלחת כתובת אחרי /link_wallet בלי פרמטרים)
             if state == STATE_AWAITING_BNB_ADDRESS:
                 context.user_data["state"] = None
 
