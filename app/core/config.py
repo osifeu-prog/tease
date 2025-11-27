@@ -1,6 +1,7 @@
 import secrets
 from decimal import Decimal
-from pydantic import BaseSettings
+
+from pydantic_settings import BaseSettings  # <-- שורה חשובה: בא מ-pydantic_settings ולא pydantic
 
 
 class Settings(BaseSettings):
@@ -42,7 +43,7 @@ class Settings(BaseSettings):
     # לינק לדפי DOCS של המשקיעים (GitHub Pages וכו')
     DOCS_URL: str | None = None
 
-    # מספר דצימלים של טוקן SLH ברשת (לפי החוזה – כרגע הגדרנו 15 ב-ENV)
+    # מספר דצימלים של טוקן SLH ברשת (לפי החוזה – כרגע הגדרת 15 ב-ENV)
     SLH_TOKEN_DECIMALS: int = 18
 
     class Config:
