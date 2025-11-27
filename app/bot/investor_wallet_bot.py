@@ -316,7 +316,7 @@ class InvestorWalletBot:
             "Please send your BNB address (BSC network, usually starts with 0x...)."
         )
 
-    async def cmd_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+       async def cmd_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -336,28 +336,27 @@ class InvestorWalletBot:
             )
             lines.append("")
 
-            # ניסיון להראות גם מצב On-Chain אם יש כתובת
-            onchain_bnb = None
-            onchain_slh = None
-            if user.bnb_address:
+            # ==== On-Chain section – תמיד ננסה להציג אם יש כתובת ו-RPC ====
+            if user.bnb_address and settings.BSC_RPC_URL:
                 try:
-                    on = blockchain.get_onchain_balances(user.bnb_address)
+                    on = blockchain.get_onchain_balances(user.bnb_address) or {}
                     onchain_bnb = on.get("bnb")
                     onchain_slh = on.get("slh")
                 except Exception as e:
                     logger.warning("On-chain balance fetch failed: %s", e)
+                    onchain_bnb = None
+                    onchain_slh = None
 
-            if user.bnb_address and (onchain_bnb is not None or onchain_slh is not None):
                 lines.append("On-Chain view (BNB Chain):")
                 if onchain_bnb is not None:
                     lines.append(f"- BNB: {onchain_bnb:.6f} BNB")
                 else:
-                    lines.append("- BNB: unavailable (RPC or address error)")
+                    lines.append("- BNB: unavailable (RPC / address / node error)")
 
                 if onchain_slh is not None:
                     lines.append(f"- SLH: {onchain_slh:.6f} SLH")
                 else:
-                    lines.append("- SLH: unavailable (token or RPC error)")
+                    lines.append("- SLH: unavailable (token / RPC / node error)")
                 lines.append("")
 
             lines.append(
