@@ -3,24 +3,43 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from app.core.config import settings
 
-DATABASE_URL = settings.DATABASE_URL
-
-if not DATABASE_URL:
-    # Railway תמיד מעבירה DATABASE_URL, אבל לפיתוח לוקאלי אפשר לשים sqlite כברירת מחדל
-    DATABASE_URL = "sqlite:///./bot_factory.db"
-
+# יצירת engine מול ה-Postgres מריילווי
 engine = create_engine(
-    DATABASE_URL,
+    settings.DATABASE_URL,
     future=True,
-    pool_pre_ping=True,
+    pool_pre_ping=True,  # מונע בעיות חיבור מתות
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
+# Session של SQLAlchemy לעבודה מול ה-DB
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    future=True,
+)
+
+# בסיס המודלים
 Base = declarative_base()
 
 
 def init_db():
-    # יבוא כאן כדי להימנע מתלות מעגלית
+    """
+    יצירת טבלאות חסרות (users, transactions וכו') לפי המודלים.
+    לא נוגע בטבלאות קיימות.
+    """
+    # חשוב לייבא את המודלים כדי ש-SQLAlchemy יכיר את הטבלאות
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    """
+    Dependency סטנדרטי למי שרוצה להשתמש ב-Session דרך FastAPI.
+    (כרגע לא חובה, אבל טוב שיהיה לעתיד.)
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
