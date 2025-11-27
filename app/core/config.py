@@ -1,33 +1,32 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "SLH Manager - Investor Gateway"
-    VERSION: str = "1.0.0"
+    # Core
+    BOT_TOKEN: str | None = None
+    WEBHOOK_URL: str | None = None
 
-    DATABASE_URL: Optional[str] = None
+    # Database
+    DATABASE_URL: str
 
-    SECRET_KEY: str = "change-me"
-
-    BOT_TOKEN: Optional[str] = None
-    ADMIN_USER_ID: Optional[str] = None
-
-    WEBHOOK_URL: Optional[str] = None
-
-    DOCS_URL: str = "/docs"
-
-    COMMUNITY_WALLET_ADDRESS: Optional[str] = None
-    SLH_TOKEN_ADDRESS: Optional[str] = None
+    # SLH / BNB config
+    COMMUNITY_WALLET_ADDRESS: str | None = None
+    SLH_TOKEN_ADDRESS: str | None = None
     SLH_PRICE_NIS: float = 444.0
-    BSC_RPC_URL: Optional[str] = None
-    BSC_SCAN_BASE: str = "https://bscscan.com"
-    BUY_BNB_URL: Optional[str] = None
-    STAKING_INFO_URL: Optional[str] = None
+
+    BSC_SCAN_BASE: str | None = "https://bscscan.com"
+    BUY_BNB_URL: str | None = "https://www.binance.com/en/buy-BNB"
+    STAKING_INFO_URL: str | None = None
+
+    # Docs
+    DOCS_URL: str | None = None
+
+    # Admin
+    ADMIN_USER_ID: int | None = None
 
     class Config:
         env_file = ".env"
-        case_sensitive = False
+        env_file_encoding = "utf-8"
 
 
 settings = Settings()

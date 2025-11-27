@@ -1,46 +1,51 @@
-# SLH Manager – Investor Gateway + Minimal Wallet
+# SLH Investor Gateway Bot (BOT_FACTORY)
 
-This repo contains:
+FastAPI + python-telegram-bot v21 service running on Railway.
 
-- SLH Investor Gateway Bot (Telegram) – for investors (100K ILS+)
-- SLH Off-Chain Wallet – minimal wallet for SLH units
-- FastAPI Service – `/health` endpoint and Telegram webhook
+## Features
 
-Designed to run on Railway (or any similar PaaS) with Postgres.
+- Strategic investors gateway for SLH
+- Link BNB (BSC) wallet to Telegram profile
+- Off-chain SLH ledger (PostgreSQL via SQLAlchemy)
+- Admin credit tool for allocations
+- Internal transfers between investors
+- On-chain balances placeholder module (for future BSC integration)
+- Rich Telegram UX:
+  - /menu with inline keyboard
+  - /summary investor dashboard
+  - /history – last transactions
+  - /docs – link to investor documentation
 
-## Project structure
+## Project Structure
 
-```text
-slh_manager/
-  app/
-    core/
-      config.py
-    bot/
-      investor_wallet_bot.py
-    __init__.py
-    main.py
-    database.py
-    models.py
-    schemas.py
-    crud.py
-  requirements.txt
-  README.md
-  .env.example
-  Dockerfile
-```
+- `app/main.py` – FastAPI app + webhook endpoint + startup init
+- `app/core/config.py` – Pydantic settings (env-based)
+- `app/database.py` – SQLAlchemy engine, SessionLocal, Base
+- `app/models.py` – User, Transaction models
+- `app/crud.py` – DB helpers for users, balances and transfers
+- `app/blockchain.py` – On-chain balance placeholder (SLH/BNB)
+- `app/bot/investor_wallet_bot.py` – all Telegram logic
 
-## Local run
+## Running locally
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
 pip install -r requirements.txt
 
-# create .env from .env.example or set env vars manually
+# create .env from example
+cp .env.example .env
+# edit BOT_TOKEN, DATABASE_URL, etc.
 
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload
 ```
 
-Telegram webhook URL:
+Expose `http://localhost:8000/webhook/telegram` via ngrok if you want webhook locally.
 
-`https://your-domain/webhook/telegram`
+## Deploying to Railway
+
+- Create a new service from this repo.
+- Set environment variables according to `.env.example`.
+- Make sure `PORT` is set to `8080` in Railway (or change the Docker CMD).
+- Telegram webhook will be set automatically on startup using `WEBHOOK_URL`.

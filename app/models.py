@@ -1,37 +1,23 @@
-from sqlalchemy import Column, BigInteger, Integer, String, DateTime, Numeric, ForeignKey
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-
+from sqlalchemy import Column, Integer, BigInteger, String, Numeric, DateTime, func
 from app.database import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
-    telegram_id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
     username = Column(String(64), index=True, nullable=True)
-    bnb_address = Column(String(64), nullable=True)
-    balance_slh = Column(Numeric(24, 8), default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    transactions_sent = relationship(
-        "Transaction", back_populates="sender", foreign_keys="Transaction.from_user"
-    )
-    transactions_received = relationship(
-        "Transaction", back_populates="receiver", foreign_keys="Transaction.to_user"
-    )
+    bnb_address = Column(String(128), nullable=True)
+    balance_slh = Column(Numeric(24, 8), nullable=False, default=0)
 
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    from_user = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
-    to_user = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
-    amount_slh = Column(Numeric(24, 8), nullable=False)
-    status = Column(String(20), default="completed")
-    type = Column(String(32), default="internal")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    sender = relationship("User", foreign_keys=[from_user], back_populates="transactions_sent")
-    receiver = relationship("User", foreign_keys=[to_user], back_populates="transactions_received")
+    id = Column(Integer, primary_key=True, index=True)
+    from_user_id = Column(Integer, nullable=True)
+    to_user_id = Column(Integer, nullable=True)
+    tx_type = Column(String(64), nullable=False)
+    amount_slh = Column(Numeric(24, 8), nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

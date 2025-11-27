@@ -4,9 +4,15 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.database import engine
+from app.models import Base
 from app.bot.investor_wallet_bot import initialize_bot, process_webhook
 
 logger = logging.getLogger(__name__)
+
+# יצירת טבלאות אם אינן קיימות
+Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="SLH Investor Gateway",
