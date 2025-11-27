@@ -46,21 +46,31 @@ class InvestorWalletBot:
         # Commands
         self.application.add_handler(CommandHandler("start", self.cmd_start))
         self.application.add_handler(CommandHandler("help", self.cmd_help))
+        self.application.add_handler(CommandHandler("menu", self.cmd_menu))
         self.application.add_handler(CommandHandler("wallet", self.cmd_wallet))
         self.application.add_handler(CommandHandler("link_wallet", self.cmd_link_wallet))
         self.application.add_handler(CommandHandler("balance", self.cmd_balance))
+        self.application.add_handler(CommandHandler("history", self.cmd_history))
         self.application.add_handler(CommandHandler("transfer", self.cmd_transfer))
         self.application.add_handler(CommandHandler("whoami", self.cmd_whoami))
         self.application.add_handler(CommandHandler("summary", self.cmd_summary))
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
-        self.application.add_handler(CommandHandler("history", self.cmd_history))
 
-        # Admin-only command
+        # Admin-only commands
         self.application.add_handler(CommandHandler("admin_credit", self.cmd_admin_credit))
+        self.application.add_handler(CommandHandler("admin_menu", self.cmd_admin_menu))
 
-        # Callback for inline buttons
+        # Callback for inline buttons – משקיעים
         self.application.add_handler(
             CallbackQueryHandler(self.cb_wallet_menu, pattern=r"^WALLET_")
+        )
+        self.application.add_handler(
+            CallbackQueryHandler(self.cb_main_menu, pattern=r"^MENU_")
+        )
+
+        # Callback לאדמין
+        self.application.add_handler(
+            CallbackQueryHandler(self.cb_admin_menu, pattern=r"^ADMIN_")
         )
 
         # Generic text handler (for address / amounts / usernames)
@@ -94,32 +104,54 @@ class InvestorWalletBot:
 
     def _slh_price_nis(self) -> Decimal:
         """
-        מחזיר את מחיר ה-SLH בניס (ברירת מחדל: 444) כ-Decimal,
-        כדי שלא יהיו בעיות טייפים.
+        מחיר SLH בניס (ברירת מחדל: 444) כ-Decimal.
         """
         try:
             return Decimal(str(settings.SLH_PRICE_NIS))
         except Exception:
             return Decimal("444")
 
-    async def _send_main_menu(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
-    ):
-        buttons = [
+    # ===== Menus (inline keyboards) =====
+
+    def _main_menu_keyboard(self) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("Balance", callback_data="WALLET_BALANCE"),
-                InlineKeyboardButton("Wallet", callback_data="WALLET_DETAILS"),
-            ],
+                [
+                    InlineKeyboardButton("📊 Summary", callback_data="MENU_SUMMARY"),
+                    InlineKeyboardButton("💰 Balance", callback_data="MENU_BALANCE"),
+                ],
+                [
+                    InlineKeyboardButton("👛 Wallet", callback_data="MENU_WALLET"),
+                    InlineKeyboardButton("🔗 Link Wallet", callback_data="MENU_LINK_WALLET"),
+                ],
+                [
+                    InlineKeyboardButton("📜 History", callback_data="MENU_HISTORY"),
+                    InlineKeyboardButton("🔁 Transfer", callback_data="MENU_TRANSFER"),
+                ],
+                [
+                    InlineKeyboardButton("📄 Docs", callback_data="MENU_DOCS"),
+                ],
+            ]
+        )
+
+    def _admin_menu_keyboard(self) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("Buy BNB", callback_data="WALLET_BUY_BNB"),
-            ],
-        ]
-        await update.message.reply_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(buttons),
+                [
+                    InlineKeyboardButton(
+                        "💳 Admin credit help", callback_data="ADMIN_HELP_CREDIT"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📜 Ledger overview", callback_data="ADMIN_HELP_HISTORY"
+                    )
+                ],
+            ]
         )
 
     # ===== Commands =====
+
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו.
@@ -162,6 +194,8 @@ class InvestorWalletBot:
         text_lines.append("4) Use /whoami to see your ID, username and wallet status.")
         text_lines.append("5) Use /summary for a full investor dashboard.")
         text_lines.append("6) Use /history to review your latest transactions.")
+        text_lines.append("")
+        text_lines.append("You can also open /menu for a button-based experience.")
 
         await update.message.reply_text("\n".join(text_lines))
 
@@ -169,6 +203,7 @@ class InvestorWalletBot:
         text = (
             "SLH Wallet Bot – Help\n\n"
             "/start       – Intro and onboarding\n"
+            "/menu        – Main menu with buttons\n"
             "/summary     – Full investor dashboard (wallet + balance + profile)\n"
             "/wallet      – Wallet details and ecosystem links\n"
             "/link_wallet – Link your personal BNB (BSC) address\n"
@@ -177,11 +212,23 @@ class InvestorWalletBot:
             "/transfer    – Internal off-chain transfer to another user\n"
             "/whoami      – See your Telegram ID, username and wallet status\n"
             "/docs        – Open the official SLH investor docs\n\n"
+            "Admin only:\n"
+            "/admin_menu  – Admin tools overview\n"
+            "/admin_credit <telegram_id> <amount_slh>\n\n"
             "At this stage there is no redemption of principal – "
             "only usage of SLH units inside the ecosystem.\n"
             "BNB and gas remain in your own wallet via external providers."
         )
         await update.message.reply_text(text)
+
+    async def cmd_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        תפריט הכפתורים הראשי למשקיע.
+        """
+        await update.message.reply_text(
+            "SLH Investor Menu – choose an action:",
+            reply_markup=self._main_menu_keyboard(),
+        )
 
     async def cmd_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = self._ensure_user(update)
@@ -325,11 +372,7 @@ class InvestorWalletBot:
 
     async def cmd_whoami(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
-        נותן חוויית "אני רשום במערכת":
-        - Telegram ID
-        - username
-        - כתובת BNB
-        - מאזן SLH
+        נותן חוויית "אני רשום במערכת".
         """
         db = self._db()
         try:
@@ -361,12 +404,7 @@ class InvestorWalletBot:
 
     async def cmd_summary(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
-        דשבורד משקיע במסך אחד:
-        - פרופיל
-        - ארנק
-        - מאזן SLH + ערך בש״ח
-        - On-Chain BNB+SLH
-        - לינקים חשובים
+        דשבורד משקיע במסך אחד.
         """
         db = self._db()
         try:
@@ -402,7 +440,9 @@ class InvestorWalletBot:
             lines.append("Profile:")
             lines.append(f"- Telegram ID: {tg_user.id}")
             lines.append(
-                f"- Username: @{tg_user.username}" if tg_user.username else "- Username: N/A"
+                f"- Username: @{tg_user.username}"
+                if tg_user.username
+                else "- Username: N/A"
             )
             lines.append("")
             lines.append("Wallets:")
@@ -442,7 +482,7 @@ class InvestorWalletBot:
                 lines.append(f"Investor Docs: {settings.DOCS_URL}")
 
             lines.append("")
-            lines.append("Key commands: /wallet, /balance, /history, /transfer, /docs, /help")
+            lines.append("Key commands: /menu, /wallet, /balance, /history, /transfer, /docs, /help")
 
             await update.message.reply_text("\n".join(lines))
         finally:
@@ -474,9 +514,7 @@ class InvestorWalletBot:
 
     async def cmd_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
-        מציג עד 10 הטרנזקציות האחרונות שבהן המשתמש מעורב (Off-Chain),
-        מתוך טבלת transactions ב-DB.
-        בנוי בצורה סלחנית לשמות שדות – אם יש הבדל בסכימה, רק צריך להתאים כאן.
+        מציג עד 10 הטרנזקציות האחרונות שבהן המשתמש מעורב (Off-Chain).
         """
         db = self._db()
         try:
@@ -485,7 +523,6 @@ class InvestorWalletBot:
                 db, telegram_id=tg_user.id, username=tg_user.username
             )
 
-            # ננסה לכסות גם id פנימי וגם telegram_id – תלוי איך המודל שלך בנוי
             user_ids = []
             if hasattr(user, "id") and user.id is not None:
                 user_ids.append(user.id)
@@ -496,13 +533,17 @@ class InvestorWalletBot:
                 await update.message.reply_text("No transactions found for this profile.")
                 return
 
-            # נניח שמודל ה-Transaction כולל from_user_id / to_user_id / created_at / amount_slh / tx_type
-            q = db.query(models.Transaction).filter(
-                or_(
-                    models.Transaction.from_user_id.in_(user_ids),
-                    models.Transaction.to_user_id.in_(user_ids),
+            q = (
+                db.query(models.Transaction)
+                .filter(
+                    or_(
+                        models.Transaction.from_user_id.in_(user_ids),
+                        models.Transaction.to_user_id.in_(user_ids),
+                    )
                 )
-            ).order_by(models.Transaction.created_at.desc()).limit(10)
+                .order_by(models.Transaction.created_at.desc())
+                .limit(10)
+            )
 
             txs = q.all()
 
@@ -518,7 +559,6 @@ class InvestorWalletBot:
             lines.append("")
 
             for tx in txs:
-                # זיהוי כיוון (IN/OUT)
                 from_id = getattr(tx, "from_user_id", None)
                 to_id = getattr(tx, "to_user_id", None)
                 tx_type = getattr(tx, "tx_type", "N/A")
@@ -536,7 +576,6 @@ class InvestorWalletBot:
                 if any(uid == to_id for uid in user_ids):
                     direction = "IN"
 
-                # תצוגת תאריך בסיסית
                 if created_at is not None:
                     try:
                         ts = created_at.strftime("%Y-%m-%d %H:%M")
@@ -608,7 +647,22 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    # ===== Callbacks =====
+    async def cmd_admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        תפריט אדמין – זמין רק למזהה המוגדר ב-ADMIN_USER_ID.
+        """
+        admin_id = settings.ADMIN_USER_ID
+        if not admin_id or str(update.effective_user.id) != str(admin_id):
+            await update.message.reply_text("This command is admin-only.")
+            return
+
+        await update.message.reply_text(
+            "SLH Admin Menu – tools for managing investor balances:",
+            reply_markup=self._admin_menu_keyboard(),
+        )
+
+    # ===== Callback handlers =====
+
     async def cb_wallet_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -631,6 +685,70 @@ class InvestorWalletBot:
                 await query.edit_message_text(
                     "BUY_BNB_URL not set in environment variables."
                 )
+
+    async def cb_main_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        כפתורי MENU_* עבור המשקיע.
+        """
+        query = update.callback_query
+        await query.answer()
+        data = query.data
+
+        # נשתמש ב-fake Update כדי לקרוא לפקודות קיימות
+        fake_update = Update(update.update_id, message=query.message)
+
+        if data == "MENU_SUMMARY":
+            await self.cmd_summary(fake_update, context)
+
+        elif data == "MENU_BALANCE":
+            await self.cmd_balance(fake_update, context)
+
+        elif data == "MENU_WALLET":
+            await self.cmd_wallet(fake_update, context)
+
+        elif data == "MENU_LINK_WALLET":
+            await self.cmd_link_wallet(fake_update, context)
+
+        elif data == "MENU_HISTORY":
+            await self.cmd_history(fake_update, context)
+
+        elif data == "MENU_TRANSFER":
+            await self.cmd_transfer(fake_update, context)
+
+        elif data == "MENU_DOCS":
+            await self.cmd_docs(fake_update, context)
+
+    async def cb_admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        כפתורי ADMIN_* עבור אדמין.
+        """
+        query = update.callback_query
+        await query.answer()
+        data = query.data
+
+        admin_id = settings.ADMIN_USER_ID
+        if not admin_id or str(query.from_user.id) != str(admin_id):
+            await query.edit_message_text("Admin only.")
+            return
+
+        if data == "ADMIN_HELP_CREDIT":
+            text = (
+                "Admin credit tool:\n\n"
+                "Use:\n"
+                "/admin_credit <telegram_id> <amount_slh>\n\n"
+                "Example:\n"
+                "/admin_credit 224223270 199999.877\n\n"
+                "This will create an internal ledger transaction and update the user's off-chain SLH balance."
+            )
+            await query.edit_message_text(text)
+
+        elif data == "ADMIN_HELP_HISTORY":
+            text = (
+                "Ledger overview:\n\n"
+                "For now, use /history from a user account to see their last 10 transactions.\n"
+                "In future iterations we can add global admin views and filters."
+            )
+            await query.edit_message_text(text)
 
     # ===== Text handler =====
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
