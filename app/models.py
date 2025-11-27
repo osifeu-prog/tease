@@ -13,16 +13,10 @@ from app.database import Base
 
 class User(Base):
     """
-    טבלת משתמשים – מותאם לסכימה הקיימת בפוסטגרס:
+    טבלת משתמשים – מותאם לסכימה הקיימת בפוסטגרס.
 
-    עמודות קיימות לפי השגיאה:
-    - telegram_id
-    - username
-    - bnb_address
-    - balance_slh
-
-    לכן:
-    - אין כאן id בכלל.
+    חשוב:
+    - אין עמודה id.
     - telegram_id הוא ה-Primary Key.
     """
 
@@ -37,8 +31,6 @@ class User(Base):
 class Transaction(Base):
     """
     טבלת טרנזקציות פנימיות (Off-Chain Ledger).
-
-    כאן כן נוח לעבוד עם id רץ משלנו.
     """
 
     __tablename__ = "transactions"
