@@ -52,6 +52,7 @@ class InvestorWalletBot:
         self.application.add_handler(CommandHandler("balance", self.cmd_balance))
         self.application.add_handler(CommandHandler("history", self.cmd_history))
         self.application.add_handler(CommandHandler("transfer", self.cmd_transfer))
+        self.application.add_handler(CommandHandler("send_slh", self.cmd_send_slh))
         self.application.add_handler(CommandHandler("whoami", self.cmd_whoami))
         self.application.add_handler(CommandHandler("summary", self.cmd_summary))
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
