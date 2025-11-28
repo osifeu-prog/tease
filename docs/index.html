@@ -1,706 +1,403 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="utf-8">
-    <title>SLH Investor Gateway – דף הבית</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>SLH Investor Gateway – שער המשקיעים</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <meta name="description" content="שער המשקיעים הרשמי של אקו־סיסטם SLH: בוט טלגרם למשקיעים, ארנק BNB/SLH, דוחות און־צ'יין ואוף־צ'יין ודף מידע מלא למשקיעים.">
+  <meta name="description" content="שער המשקיעים של אקו־סיסטם SLH: בוט טלגרם למשקיעים, חיבור ל-BNB Smart Chain ודף מידע מרוכז למשקיעים.">
 
-    <!-- Open Graph / Social Preview -->
-    <meta property="og:title" content="SLH Investor Gateway – שער המשקיעים של אקו-סיסטם SLH">
-    <meta property="og:description" content="בוט השקעות, ארנק BNB/SLH, חיבור און-צ'יין ואוף-צ'יין, ודף מידע מלא למשקיעים.">
-    <meta property="og:image" content="https://osifeu-prog.github.io/BOT_FACTORY/assets/slh-social-cover.png">
-    <meta property="og:type" content="website">
-    <meta property="og:locale" content="he_IL">
+  <!-- Open Graph / Social Preview -->
+  <meta property="og:title" content="SLH Investor Gateway – שער המשקיעים של SLH">
+  <meta property="og:description" content="בוט משקיעים בטלגרם + ארנק קהילתי + דף מידע למשקיעים.">
+  <meta property="og:image" content="https://osifeu-prog.github.io/BOT_FACTORY/assets/slh-social-cover.png">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="he_IL">
 
-    <style>
-        :root {
-            --bg: #050613;
-            --bg-elevated: #101321;
-            --accent: #4fd1c5;
-            --accent-soft: rgba(79, 209, 197, 0.12);
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
-            --border-subtle: rgba(255, 255, 255, 0.12);
-            --danger: #f97373;
-        }
+  <style>
+    :root {
+      --bg: #020617;
+      --card-bg: rgba(15, 23, 42, 0.92);
+      --accent: #4fd1c5;
+      --accent-soft: rgba(79, 209, 197, 0.15);
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --border-subtle: rgba(148, 163, 184, 0.4);
+    }
 
-        * {
-            box-sizing: border-box;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
-            color: var(--text-main);
-        }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-        a {
-            color: inherit;
-        }
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
 
-        .page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+    /* BUBBLES BACKGROUND */
+    .bubbles {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: -1;
+      pointer-events: none;
+    }
 
-        header {
-            border-bottom: 1px solid var(--border-subtle);
-            background: radial-gradient(circle at top, rgba(79, 209, 197, 0.08), transparent 55%);
-        }
+    .bubble {
+      position: absolute;
+      bottom: -80px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #4fd1c5);
+      opacity: 0.12;
+      filter: blur(1px);
+      animation: floatUp 18s linear infinite;
+    }
 
-        .header-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 1rem 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
+    .bubble:nth-child(2) { width: 18px; height: 18px; left: 12%; animation-duration: 22s; animation-delay: -4s; }
+    .bubble:nth-child(3) { width: 32px; height: 32px; left: 26%; animation-duration: 25s; animation-delay: -9s; opacity: 0.08; }
+    .bubble:nth-child(4) { width: 20px; height: 20px; left: 43%; animation-duration: 19s; animation-delay: -6s; }
+    .bubble:nth-child(5) { width: 28px; height: 28px; left: 61%; animation-duration: 24s; animation-delay: -11s; opacity: 0.1; }
+    .bubble:nth-child(6) { width: 16px; height: 16px; left: 74%; animation-duration: 20s; animation-delay: -2s; }
+    .bubble:nth-child(7) { width: 30px; height: 30px; left: 87%; animation-duration: 26s; animation-delay: -13s; opacity: 0.07; }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: .75rem;
-        }
+    @keyframes floatUp {
+      0% {
+        transform: translateY(0) translateX(0);
+      }
+      50% {
+        transform: translateY(-50vh) translateX(20px);
+      }
+      100% {
+        transform: translateY(-100vh) translateX(-10px);
+      }
+    }
 
-        .brand-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #4fd1c5, #22c55e);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.1rem;
-            box-shadow: 0 0 20px rgba(79, 209, 197, 0.6);
-        }
+    /* LAYOUT */
 
-        .brand-text h1 {
-            margin: 0;
-            font-size: 1.15rem;
-        }
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-        .brand-text span {
-            display: block;
-            font-size: .8rem;
-            color: var(--text-muted);
-        }
+    header {
+      padding: 0.9rem 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
 
-        nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .5rem;
-        }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
 
-        nav a {
-            text-decoration: none;
-            font-size: .9rem;
-            padding: .4rem .8rem;
-            border-radius: 999px;
-            border: 1px solid transparent;
-            color: var(--text-muted);
-        }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4fd1c5, #22c55e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 0 20px rgba(79, 209, 197, 0.6);
+    }
 
-        nav a:hover {
-            border-color: var(--accent);
-            color: var(--text-main);
-            background: rgba(79, 209, 197, 0.08);
-        }
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
 
-        main {
-            flex: 1;
-        }
+    .brand-text strong {
+      font-size: 0.95rem;
+    }
 
-        .hero {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2.5rem 1.25rem 1.5rem;
-            display: grid;
-            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-            gap: 2rem;
-        }
+    .brand-text span {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
 
-        @media (max-width: 900px) {
-            .hero {
-                grid-template-columns: minmax(0, 1fr);
-            }
-        }
+    .header-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
 
-        .hero-title {
-            font-size: 2rem;
-            margin: 0 0 .75rem;
-        }
+    .header-links a {
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+    }
 
-        .hero-subtitle {
-            margin: 0 0 1.25rem;
-            color: var(--text-muted);
-            font-size: .98rem;
-            line-height: 1.6;
-        }
+    .header-links a:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--text-main);
+    }
 
-        .hero-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .5rem;
-            margin-bottom: 1.5rem;
-        }
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
 
-        .badge {
-            font-size: .75rem;
-            padding: .25rem .65rem;
-            border-radius: 999px;
-            border: 1px solid var(--border-subtle);
-            background: rgba(15, 23, 42, 0.8);
-            color: var(--text-muted);
-        }
+    .shell {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 1.5rem;
+    }
 
-        .badge-accent {
-            border-color: var(--accent);
-            background: var(--accent-soft);
-            color: var(--accent);
-        }
+    @media (max-width: 800px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 0.5rem;
+      }
+    }
 
-        .cta-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .75rem;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
+    .card-main {
+      background: var(--card-bg);
+      border-radius: 20px;
+      border: 1px solid var(--border-subtle);
+      padding: 1.4rem 1.5rem;
+      box-shadow: 0 18px 35px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+    }
 
-        .cta-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: .55rem 1.1rem;
-            border-radius: 999px;
-            border: none;
-            cursor: pointer;
-            font-size: .95rem;
-            font-weight: 500;
-            text-decoration: none;
-            color: #020617;
-            background: linear-gradient(135deg, #4fd1c5, #22c55e);
-            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.35);
-            white-space: nowrap;
-        }
+    .card-main h1 {
+      margin: 0 0 0.6rem;
+      font-size: 1.6rem;
+    }
 
-        .cta-button.secondary {
-            background: transparent;
-            border: 1px solid var(--border-subtle);
-            color: var(--text-main);
-            box-shadow: none;
-        }
+    .card-main p.lead {
+      margin: 0 0 1rem;
+      font-size: 0.96rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
 
-        .cta-button.secondary:hover {
-            border-color: var(--accent);
-            background: rgba(79, 209, 197, 0.08);
-        }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
 
-        .cta-hint {
-            font-size: .8rem;
-            color: var(--text-muted);
-        }
+    .pill {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
 
-        .hero-card {
-            border-radius: 16px;
-            padding: 1.25rem;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid var(--border-subtle);
-        }
+    .pill.accent {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
 
-        .hero-card h2 {
-            font-size: 1rem;
-            margin: 0 0 .75rem;
-        }
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+    }
 
-        .hero-card dl {
-            margin: 0;
-            display: grid;
-            grid-template-columns: auto 1fr;
-            row-gap: .45rem;
-            column-gap: .5rem;
-            font-size: .88rem;
-        }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      white-space: nowrap;
+    }
 
-        .hero-card dt {
-            color: var(--text-muted);
-        }
+    .btn.primary {
+      background: linear-gradient(135deg, #4fd1c5, #22c55e);
+      color: #020617;
+      box-shadow: 0 12px 28px rgba(34, 197, 94, 0.35);
+    }
 
-        .hero-card dd {
-            margin: 0;
-            font-weight: 500;
-        }
+    .btn.secondary {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
 
-        /* CTA Section with side menu & expandable blocks */
+    .btn.secondary:hover {
+      border-color: var(--accent);
+      background: rgba(15, 23, 42, 0.8);
+    }
 
-        .section {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 1.5rem 1.25rem 2.5rem;
-        }
+    .hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
 
-        .section h2 {
-            margin-top: 0;
-            margin-bottom: .75rem;
-            font-size: 1.4rem;
-        }
+    /* Right side simple info */
 
-        .section p {
-            margin-top: 0;
-            color: var(--text-muted);
-            font-size: .95rem;
-        }
+    .card-side {
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 1.1rem 1.2rem;
+      font-size: 0.86rem;
+    }
 
-        .cta-layout {
-            display: flex;
-            gap: 2rem;
-            align-items: flex-start;
-            margin-top: 2rem;
-            flex-wrap: wrap;
-        }
+    .card-side h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+    }
 
-        .cta-sidebar {
-            min-width: 220px;
-            max-width: 260px;
-            display: flex;
-            flex-direction: column;
-            gap: .5rem;
-        }
+    .card-side dl {
+      margin: 0;
+    }
 
-        .cta-sidebar h3 {
-            margin: 0 0 .4rem;
-            font-size: 1rem;
-        }
+    .card-side dt {
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+    }
 
-        .cta-main {
-            flex: 1;
-            min-width: 260px;
-        }
+    .card-side dd {
+      margin: 0;
+      font-weight: 500;
+    }
 
-        .cta-main > p {
-            margin-bottom: 1rem;
-        }
+    .side-link {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
 
-        .expansion-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
+    .side-link a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+    }
 
-        .expansion-card {
-            border-radius: 12px;
-            padding: 1rem;
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--border-subtle);
-            cursor: pointer;
-            transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
-        }
-
-        .expansion-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
-            background: rgba(15, 23, 42, 0.98);
-            border-color: var(--accent);
-        }
-
-        .expansion-card h4 {
-            margin: 0 0 .3rem;
-            font-size: 1rem;
-        }
-
-        .expansion-card > p {
-            margin: 0;
-            font-size: .9rem;
-            color: var(--text-muted);
-        }
-
-        .expansion-content {
-            display: none;
-            margin-top: .75rem;
-            font-size: .9rem;
-            color: var(--text-main);
-        }
-
-        .expansion-content ul {
-            padding-right: 1rem;
-            margin: 0;
-        }
-
-        .expansion-content li {
-            margin-bottom: .2rem;
-        }
-
-        .expansion-card.expanded .expansion-content {
-            display: block;
-        }
-
-        /* Additional sections (scroll targets) */
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 1rem;
-            margin-top: 1.25rem;
-        }
-
-        .info-card {
-            border-radius: 12px;
-            padding: 1rem;
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--border-subtle);
-            font-size: .9rem;
-        }
-
-        .info-card h3 {
-            margin: 0 0 .4rem;
-            font-size: 1rem;
-        }
-
-        .info-card p {
-            margin: 0;
-            color: var(--text-muted);
-        }
-
-        .info-card ul {
-            padding-right: 1rem;
-            margin: .35rem 0 0;
-        }
-
-        footer {
-            border-top: 1px solid var(--border-subtle);
-            padding: .75rem 1.25rem 1.25rem;
-            font-size: .8rem;
-            color: var(--text-muted);
-            text-align: center;
-            background: #020617;
-        }
-
-        @media (max-width: 768px) {
-            .cta-layout {
-                flex-direction: column-reverse;
-            }
-        }
-    </style>
+    footer {
+      padding: 0.8rem 1.4rem 1.1rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-<div class="page">
-
-    <header>
-        <div class="header-inner">
-            <div class="brand">
-                <div class="brand-logo">SLH</div>
-                <div class="brand-text">
-                    <h1>SLH Investor Gateway</h1>
-                    <span>בוט השקעות + ארנק BNB/SLH + דוחות און־צ'יין</span>
-                </div>
-            </div>
-            <nav>
-                <a href="#section-investors">משקיעים</a>
-                <a href="#section-bot-flow">איך הבוט עובד</a>
-                <a href="#section-roadmap">מפת דרכים</a>
-                <a href="#section-ecosystem">אקו־סיסטם SLH</a>
-                <a href="investors.html">דף למשקיעים</a>
-            </nav>
-        </div>
-    </header>
-
-    <main>
-        <!-- HERO -->
-        <section class="hero">
-            <div>
-                <h2 class="hero-title">שער המשקיעים לאקו־סיסטם SLH</h2>
-                <p class="hero-subtitle">
-                    בוט טלגרם שמאפשר לך לנהל השקעות, לצפות ביתרות און־צ'יין ואוף־צ'יין,
-                    ולראות את כל התמונה של האקו־סיסטם במקום אחד – בטלגרם ובדפדפן.
-                </p>
-
-                <div class="hero-badges">
-                    <span class="badge badge-accent">BNB Smart Chain</span>
-                    <span class="badge">On-Chain + Off-Chain Ledger</span>
-                    <span class="badge">דשבורד למשקיעים</span>
-                    <span class="badge">הרחבה ל-NFT / סטייקינג / TON בהמשך</span>
-                </div>
-
-                <div class="cta-row">
-                    <a class="cta-button" href="https://t.me/YOUR_BOT_USERNAME_HERE" target="_blank" rel="noopener">
-                        כניסה לבוט המשקיעים בטלגרם
-                    </a>
-                    <a class="cta-button secondary" href="investors.html">
-                        דף מידע למשקיעים
-                    </a>
-                </div>
-                <div class="cta-hint">
-                    מומלץ לשמור את הקישור הזה ולהעביר למשקיעים פוטנציאליים – גם לטלגרם וגם לדף המשקיעים.
-                </div>
-            </div>
-
-            <aside class="hero-card">
-                <h2>סטטוס אקו־סיסטם (תצוגה לדוגמה)</h2>
-                <dl>
-                    <dt>מחיר SLH:</dt>
-                    <dd>444 ₪ ליחידה (נומינלי)</dd>
-
-                    <dt>ערוץ ראשי:</dt>
-                    <dd>טווח השקעה: 100,000 ₪ ומעלה</dd>
-
-                    <dt>מודל:</dt>
-                    <dd>On-Chain + Off-Chain + יומן עסקאות</dd>
-
-                    <dt>ארנק קהילה:</dt>
-                    <dd>BNB + SLH על BNB Smart Chain</dd>
-
-                    <dt>שלב נוכחי:</dt>
-                    <dd>פיילוט משקיעים + בדיקות העברה אמיתית</dd>
-                </dl>
-            </aside>
-        </section>
-
-        <!-- CTA + SIDE MENU + EXPANSION CARDS -->
-        <section class="section" id="section-investors">
-            <h2>מה משקיע מקבל מהמערכת?</h2>
-            <p>
-                המטרה היא לתת למשקיע חוויית &quot;בנק פרטי&quot; על גבי טלגרם, מחוברת לבלוקצ'יין
-                ומגובה באתר מידע – עם שליטה מלאה על זרימת הכסף, הדוחות והקשרים לאקו־סיסטם העתידי.
-            </p>
-
-            <div class="cta-layout">
-                <!-- SIDE MENU -->
-                <aside class="cta-sidebar">
-                    <h3>ניווט מהיר</h3>
-                    <button class="cta-button secondary"
-                            onclick="document.getElementById('section-investors').scrollIntoView({behavior:'smooth'})">
-                        דף מידע למשקיעים (תקציר)
-                    </button>
-                    <button class="cta-button secondary"
-                            onclick="document.getElementById('section-bot-flow').scrollIntoView({behavior:'smooth'})">
-                        איך הבוט עובד
-                    </button>
-                    <button class="cta-button secondary"
-                            onclick="document.getElementById('section-roadmap').scrollIntoView({behavior:'smooth'})">
-                        מפת דרכים טכנולוגית
-                    </button>
-                    <button class="cta-button secondary"
-                            onclick="document.getElementById('section-ecosystem').scrollIntoView({behavior:'smooth'})">
-                        אקו־סיסטם SLH
-                    </button>
-                    <a class="cta-button secondary" href="investors.html">
-                        מעבר לדף המשקיעים המלא
-                    </a>
-                </aside>
-
-                <!-- MAIN AREA WITH EXPANDABLE BLOCKS -->
-                <div class="cta-main">
-                    <p>
-                        הכרטיסים הבאים מדגימים את הבלוקים המרכזיים של המערכת. לחיצה על כל בלוק תרחיב את
-                        ההסבר – כדי שמשקיע יבין בשניות מה הוא מקבל היום, ומה מתוכנן עבורו בהמשך.
-                    </p>
-
-                    <div class="expansion-grid">
-                        <div class="expansion-card" onclick="toggleExpand('exp-investor-journey')">
-                            <h4>מסע המשקיע</h4>
-                            <p>מהרגע שהוא לוחץ על הקישור – ועד לניהול השקעות מלא דרך הטלגרם.</p>
-                            <div id="exp-investor-journey" class="expansion-content">
-                                <ul>
-                                    <li>קבלת לינק לבוט המשקיעים בטלגרם / QR אישי.</li>
-                                    <li>בחירת שפה, תפריט כפתורים ברור ופקודות קצרות.</li>
-                                    <li>קישור ארנק BNB קיים או שימוש בארנק קהילתי.</li>
-                                    <li>צפייה ביתרות און־צ'יין (BNB/SLH) + אוף־צ'יין (Ledger פנימי).</li>
-                                    <li>גישה לדוחות, לינקים למסמכי השקעה, קבוצות קהילה ועוד.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div class="expansion-card" onclick="toggleExpand('exp-onoffchain')">
-                            <h4>און־צ'יין + אוף־צ'יין</h4>
-                            <p>מודל היברידי שמחבר בין רישום טוקנים במערכת לבין בלוקצ'יין אמיתי.</p>
-                            <div id="exp-onoffchain" class="expansion-content">
-                                <ul>
-                                    <li>Off-Chain Ledger – יומן עסקאות פנימי ל-SLH בין משתמשים.</li>
-                                    <li>פקודות On-Chain אמיתיות לשליחת BNB ו-SLH מהארנק הקהילתי.</li>
-                                    <li>שיקוף על גבי BscScan – חוזה SLH וארנק קהילה רשמיים.</li>
-                                    <li>אפשרות להרחבה ל-NFT, סטייקינג ומודלי תשואה חכמים.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div class="expansion-card" onclick="toggleExpand('exp-analytics')">
-                            <h4>אנליטיקה ודוחות</h4>
-                            <p>כיסוי מלא לצרכי ניהול השקעות, קהל ומשאבי קהילה.</p>
-                            <div id="exp-analytics" class="expansion-content">
-                                <ul>
-                                    <li>מעקב אחרי כל כניסה לבוט (גם דרך לינק וגם דרך QR).</li>
-                                    <li>שיוך לפי קבוצות טלגרם (משקיעים, קהילה, צוות, וכו').</li>
-                                    <li>דוחות על היקפי העברה אוף־צ'יין / און־צ'יין לפי משתמש.</li>
-                                    <li>אפשרות להרחבה לדשבורדים ו-KPIs בקרות ווב (Admin Panel).</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div class="expansion-card" onclick="toggleExpand('exp-future')">
-                            <h4>חזון עתידי</h4>
-                            <p>המערכת גדלה לקראת אקו־סיסטם מלא של כלכלה, למידה ומשחקיות.</p>
-                            <div id="exp-future" class="expansion-content">
-                                <ul>
-                                    <li>חיבור בוטים נוספים: TON, קזינו, ארנקי קהילה נוספים ועוד.</li>
-                                    <li>פלטפורמת מומחים – מדד PI / SLH, שיעורים, הדרכות וחלוקת טוקנים.</li>
-                                    <li>אפליקציה מאוחדת שתאגד בוטים, ארנקים, מסחר וחנות דיגיטלית.</li>
-                                    <li>מודל &quot;משפחה כסטארטאפ&quot; – ניהול זמן, כסף והון אנושי באותו מקום.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div> <!-- /cta-main -->
-            </div> <!-- /cta-layout -->
-        </section>
-
-        <!-- SECTION: HOW THE BOT WORKS -->
-        <section class="section" id="section-bot-flow">
-            <h2>איך הבוט עובד – תמצית תפעול למשקיע</h2>
-            <p>
-                מבחינת משקיע, חשוב שהכול יהיה פשוט: הוא לא צריך להבין Docker, Railway או RPC.
-                הוא צריך להבין שהוא לוחץ, נכנס לבוט, רואה מספרים אמינים, ויודע את סטטוס ההשקעה שלו.
-            </p>
-
-            <div class="info-grid">
-                <div class="info-card">
-                    <h3>1. התחברות</h3>
-                    <p>המשקיע לוחץ על לינק הבוט / סורק QR.</p>
-                    <ul>
-                        <li>הבוט מזהה את Telegram ID ומייצר לו משתמש במערכת.</li>
-                        <li>מוצג תפריט ראשי עם כפתורים (Menu / Balance / Summary / Help).</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>2. ארנק</h3>
-                    <p>קישור ארנק BNB אישי, או שימוש בכתובת קהילה.</p>
-                    <ul>
-                        <li>אפשרות לשמור ארנק חיצוני (Non-Custodial).</li>
-                        <li>משיכת נתוני BNB/SLH בלייב מרשת BNB.</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>3. יתרות ודוחות</h3>
-                    <p>פקודות /balance, /summary, /onchain_balance.</p>
-                    <ul>
-                        <li>הצגת SLH Off-Chain, ערך נומינלי ועוד.</li>
-                        <li>לינקים ל-BscScan ולמסמכי השקעה רלוונטיים.</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>4. העברות</h3>
-                    <p>On-Chain ו-Off-Chain להעברת ערך בין משקיעים.</p>
-                    <ul>
-                        <li>פקודות אדמין כדי לנהל זרימת SLH ו-BNB.</li>
-                        <li>בקרה על הפעילות דרך דוחות פנימיים וקבוצות טלגרם.</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- SECTION: ROADMAP -->
-        <section class="section" id="section-roadmap">
-            <h2>מפת דרכים טכנולוגית</h2>
-            <p>
-                הפרויקט נבנה בשכבות – כל שכבה מוסיפה יכולת, בלי לשבור את הקוד הקיים ובלי לבלבל את המשתמש.
-            </p>
-
-            <div class="info-grid">
-                <div class="info-card">
-                    <h3>שלב 1 – בוט משקיעים + ארנק קהילה</h3>
-                    <ul>
-                        <li>בוט טלגרם פעיל על Railway.</li>
-                        <li>מסד נתונים PostgreSQL עם ledger פנימי.</li>
-                        <li>חיבור ל-BNB Smart Chain (RPC, ABI, חוזה SLH אמיתי).</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>שלב 2 – דוחות וניטור</h3>
-                    <ul>
-                        <li>לוגים לקבוצות טלגרם (Events, כניסות, העברות, QR).</li>
-                        <li>דוחות ניהול בסיסיים מתוך השרת ובהמשך ממשק אדמין וובי.</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>שלב 3 – הרחבת האקו־סיסטם</h3>
-                    <ul>
-                        <li>חיבור לבוטים נוספים – TON, קזינו, חנויות דיגיטליות ועוד.</li>
-                        <li>אינטגרציה בין כל הבוטים דרך APIs פנימיים.</li>
-                    </ul>
-                </div>
-
-                <div class="info-card">
-                    <h3>שלב 4 – אפליקציה מאוחדת</h3>
-                    <ul>
-                        <li>אפליקציית SLH מאוחדת (Mobile/Web).</li>
-                        <li>ניהול ארנקים, השקעות, קהילה ומשחקיות במקום אחד.</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- SECTION: ECOSYSTEM -->
-        <section class="section" id="section-ecosystem">
-            <h2>אקו־סיסטם SLH – לאן זה הולך?</h2>
-            <p>
-                המערכת הזו היא השער הראשון – אבל המטרה היא אקו־סיסטם מלא: טוקן, בורסה,
-                מומחים, משפחות כסטארטאפ, משחקיות, וחיבור בין עולם הקריפטו לעולם האמיתי.
-            </p>
-
-            <div class="info-grid">
-                <div class="info-card">
-                    <h3>SLH Token</h3>
-                    <p>טוקן חכם עם לוגיקה מורחבת (whitelist/blacklist, mint/burn, וכו').</p>
-                </div>
-
-                <div class="info-card">
-                    <h3>משפחות כסטארטאפ</h3>
-                    <p>מודל שבו כל משפחה הופכת ליחידת השקעה, למידה ויצירה.</p>
-                </div>
-
-                <div class="info-card">
-                    <h3>מומחים ומדד PI/SLH</h3>
-                    <p>מערכת תמרוץ למומחים ולתלמידים, כל שיעור משאיר חתימה טוקנומית.</p>
-                </div>
-
-                <div class="info-card">
-                    <h3>פלטפורמה גלובלית</h3>
-                    <p>אפשרות לחיבור שותפים, בורסות, עסקים ומשקיעים מרחבי העולם.</p>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        SLH Investor Gateway · BOT_FACTORY · אתר מידע למשקיעים – גרסת דמו תפעולית לבוט פעיל על Railway + BNB Smart Chain
-    </footer>
+<div class="bubbles">
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
 </div>
 
-<script>
-    function toggleExpand(id) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const card = el.closest('.expansion-card');
-        if (!card) return;
-        const expanded = card.classList.contains('expanded');
-        const siblings = card.parentElement.querySelectorAll('.expansion-card');
-        siblings.forEach(c => c.classList.remove('expanded'));
-        if (!expanded) {
-            card.classList.add('expanded');
-        }
-    }
-</script>
+<div class="page">
+  <header>
+    <div class="brand">
+      <div class="brand-logo">SLH</div>
+      <div class="brand-text">
+        <strong>SLH Investor Gateway</strong>
+        <span>בוט משקיעים + מידע למשקיעים</span>
+      </div>
+    </div>
+    <div class="header-links">
+      <a href="https://t.me/YOUR_BOT_USERNAME_HERE" target="_blank" rel="noopener">כניסה לבוט בטלגרם</a>
+      <a href="investors.html">דף מידע למשקיעים</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="shell">
+      <!-- MAIN CARD -->
+      <section class="card-main">
+        <h1>שער המשקיעים של אקו־סיסטם SLH</h1>
+        <p class="lead">
+          כאן מרוכזים שני הדברים שהמשקיע צריך:
+          <br>
+          <strong>1.</strong> בוט הטלגרם שמראה לו את הנתונים בזמן אמת.
+          <br>
+          <strong>2.</strong> דף מידע מסכם למשקיעים שמסביר את כל התמונה.
+        </p>
+
+        <div class="pill-row">
+          <span class="pill accent">BNB Smart Chain</span>
+          <span class="pill">SLH Token – חוזה אמיתי על BSC</span>
+          <span class="pill">On-Chain + Off-Chain Ledger</span>
+        </div>
+
+        <div class="cta-row">
+          <a class="btn primary" href="https://t.me/YOUR_BOT_USERNAME_HERE" target="_blank" rel="noopener">
+            כניסה לבוט המשקיעים בטלגרם
+          </a>
+          <a class="btn secondary" href="investors.html">
+            מעבר לדף המלא למשקיעים
+          </a>
+        </div>
+
+        <p class="hint">
+          את שני הלינקים האלה אפשר לשלוח למשקיעים: גם את הבוט עצמו, וגם את דף המידע.
+        </p>
+      </section>
+
+      <!-- SIDE CARD -->
+      <aside class="card-side">
+        <h2>מה הבוט יודע לעשות?</h2>
+        <dl>
+          <dt>זיהוי משקיע</dt>
+          <dd>/whoami – מציג Telegram ID, כתובת BNB וסטטוס.</dd>
+
+          <dt>יתרות</dt>
+          <dd>/balance ו-/summary – יתרות SLH אוף־צ'יין והערכה נומינלית.</dd>
+
+          <dt>חיבור לבלוקצ'יין</dt>
+          <dd>שליחת BNB ו-SLH מהארנק הקהילתי על גבי BNB Smart Chain.</dd>
+        </dl>
+
+        <div class="side-link">
+          לדוגמה:  
+          קישור לחוזה SLH:  
+          <a href="https://bscscan.com/token/0xACb0A09414CEA1C879c67bB7A877E4e19480f022" target="_blank" rel="noopener">
+            BscScan – SLH Contract
+          </a>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    SLH Investor Gateway · BOT_FACTORY · בוט פעיל על Railway + חיבור ל-BNB Smart Chain · לשימוש טכנולוגי/מידעי בלבד, לא ייעוץ השקעות.
+  </footer>
+</div>
 </body>
 </html>
