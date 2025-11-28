@@ -1,409 +1,706 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLH - המהפכה מתחילה!</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            direction: rtl;
-        }
-        
-        .container {
-            max-width: 800px;
-            width: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        
-        .emoji {
-            font-size: 80px;
-            margin-bottom: 15px;
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        h1 {
-            font-size: 42px;
-            margin-bottom: 15px;
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-        }
-        
-        .subtitle {
-            font-size: 20px;
-            color: #ddd;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-        
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .feature {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            transition: transform 0.3s, background 0.3s;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .feature:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.15);
-        }
-        
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 15px;
-        }
-        
-        .feature-title {
-            font-size: 18px;
-            margin-bottom: 10px;
-            color: #FFD700;
-        }
-        
-        .feature-desc {
-            font-size: 14px;
-            color: #ccc;
-            line-height: 1.5;
-        }
-        
-        .cta-section {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .cta-button {
-            background: linear-gradient(45deg, #1877F2, #0d5fcc);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 5px 15px rgba(24, 119, 242, 0.4);
-            margin: 10px;
-            font-weight: bold;
-        }
-        
-        .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(24, 119, 242, 0.6);
-        }
-        
-        .cta-button.secondary {
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
-        }
-        
-        .cta-button.secondary:hover {
-            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.6);
-        }
-        
-        .social-proof {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .social-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #aaa;
-            font-size: 14px;
-        }
-        
-        .hashtags {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .hashtag {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-        
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
-        
-        .particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
-        
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: particle-float 10s infinite linear;
-        }
-        
-        @keyframes particle-float {
-            0% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100px) rotate(360deg);
-                opacity: 0;
-            }
-        }
-        
-        .floating-shapes {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
-        
-        .shape {
-            position: absolute;
-            opacity: 0.1;
-            animation: shape-rotate 20s infinite linear;
-        }
-        
-        .shape.circle {
-            width: 100px;
-            height: 100px;
-            border: 2px solid #FFD700;
-            border-radius: 50%;
-        }
-        
-        .shape.triangle {
-            width: 0;
-            height: 0;
-            border-left: 50px solid transparent;
-            border-right: 50px solid transparent;
-            border-bottom: 87px solid #1877F2;
-        }
-        
-        @keyframes shape-rotate {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-        
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 32px;
-            }
-            
-            .subtitle {
-                font-size: 18px;
-            }
-            
-            .features {
-                grid-template-columns: 1fr;
-            }
-            
-            .emoji {
-                font-size: 60px;
-            }
-        }
-    </style>
+    <meta charset="utf-8">
+    <title>SLH Investor Gateway – דף הבית</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <meta name="description" content="שער המשקיעים הרשמי של אקו־סיסטם SLH: בוט טלגרם למשקיעים, ארנק BNB/SLH, דוחות און־צ'יין ואוף־צ'יין ודף מידע מלא למשקיעים.">
+
+    <!-- Open Graph / Social Preview -->
     <meta property="og:title" content="SLH Investor Gateway – שער המשקיעים של אקו-סיסטם SLH">
     <meta property="og:description" content="בוט השקעות, ארנק BNB/SLH, חיבור און-צ'יין ואוף-צ'יין, ודף מידע מלא למשקיעים.">
     <meta property="og:image" content="https://osifeu-prog.github.io/BOT_FACTORY/assets/slh-social-cover.png">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="he_IL">
 
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="emoji">🚀🦋</div>
-            <h1>המהפכה של SLH החלה!</h1>
-            <p class="subtitle">הבוט החדש של המערכת עלה לאוויר. גלו את העתיד של המסחר והקהילה הדיגיטלית!</p>
-        </div>
-        
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">🔗</div>
-                <div class="feature-title">קישור כתובת BNB אישית</div>
-                <div class="feature-desc">חברו את הארנק האישי שלכם (BNB/BSC) למערכת בקלות ובבטחה</div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">👁️</div>
-                <div class="feature-title">צפייה ביתרת SLH</div>
-                <div class="feature-desc">ראו את יתרת ה-SLH שהוקצתה לכם במערכת בממשק נוח וברור</div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">💰</div>
-                <div class="feature-title">גישה לכתובת הטוקן</div>
-                <div class="feature-desc">קבלו גישה מלאה לכתובת טוקן SLH + ארנק הקהילה</div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">🔄</div>
-                <div class="feature-title">העברות פנימיות</div>
-                <div class="feature-desc">העבירו כספים בין חברי המערכת בצורה מהירה ובטוחה (Off-Chain)</div>
-            </div>
-        </div>
-        
-        <div class="cta-section">
-            <p style="margin-bottom: 20px; font-size: 18px;">מוכנים להצטרף למהפכה?</p>
-            <button class="cta-button" onclick="showBotLink()">כניסה לבוט @SLH_Official</button>
-            <button class="cta-button secondary" onclick="showInstructions()">הוראות הרשמה מפורטות</button>
-        </div>
-        
-        <div class="social-proof">
-            <div class="social-item">✅ כבר הצטרפו 1,250+ משקיעים</div>
-            <div class="social-item">🚀 98% הצלחה במערכת</div>
-            <div class="social-item">⭐ דירוג 4.9/5</div>
-        </div>
-        
-        <div class="hashtags">
-            <div class="hashtag">#SLH_Revolution</div>
-            <div class="hashtag">#Crypto_Community</div>
-            <div class="hashtag">#Blockchain_Israel</div>
-            <div class="hashtag">#Digital_Transformation</div>
-        </div>
-        
-        <div class="footer">
-            <p>SLH - מכניזם של מושלמות! אנחנו לא רובוטים של מציאות - אנחנו יוצרים אותה!</p>
-            <p style="margin-top: 10px;">✨ הולכים להשיק משהו שאתם הייתם מבקשים שנים... ✨</p>
-        </div>
-        
-        <div class="particles" id="particles"></div>
-        <div class="floating-shapes">
-            <div class="shape circle" style="top: 10%; left: 5%;"></div>
-            <div class="shape triangle" style="bottom: 10%; right: 5%;"></div>
-        </div>
-    </div>
+    <style>
+        :root {
+            --bg: #050613;
+            --bg-elevated: #101321;
+            --accent: #4fd1c5;
+            --accent-soft: rgba(79, 209, 197, 0.12);
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --border-subtle: rgba(255, 255, 255, 0.12);
+            --danger: #f97373;
+        }
 
-    <script>
-        // יצירת חלקיקים רקע
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            const particleCount = 50;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.classList.add('particle');
-                
-                // מיקום אקראי
-                const left = Math.random() * 100;
-                const delay = Math.random() * 10;
-                const duration = 10 + Math.random() * 10;
-                
-                particle.style.left = `${left}%`;
-                particle.style.animationDelay = `${delay}s`;
-                particle.style.animationDuration = `${duration}s`;
-                
-                particlesContainer.appendChild(particle);
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+            color: var(--text-main);
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border-subtle);
+            background: radial-gradient(circle at top, rgba(79, 209, 197, 0.08), transparent 55%);
+        }
+
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4fd1c5, #22c55e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: 0 0 20px rgba(79, 209, 197, 0.6);
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 1.15rem;
+        }
+
+        .brand-text span {
+            display: block;
+            font-size: .8rem;
+            color: var(--text-muted);
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+        }
+
+        nav a {
+            text-decoration: none;
+            font-size: .9rem;
+            padding: .4rem .8rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+        }
+
+        nav a:hover {
+            border-color: var(--accent);
+            color: var(--text-main);
+            background: rgba(79, 209, 197, 0.08);
+        }
+
+        main {
+            flex: 1;
+        }
+
+        .hero {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 1.25rem 1.5rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: minmax(0, 1fr);
             }
         }
-        
-        // פונקציות לאינטראקציה
-        function showBotLink() {
-            alert('לבוט הרשמי: @SLH_Official\n\nהוראות:\n1. לחצו על הקישור לבוט\n2. הקלידו /start\n3. עקבו אחר ההוראות לחיבור הארנק\n\nשאלות? צרו איתנו קישור בקהילה!');
+
+        .hero-title {
+            font-size: 2rem;
+            margin: 0 0 .75rem;
         }
-        
-        function showInstructions() {
-            alert('הוראות הרשמה מלאות:\n\n1. היכנסו לבוט @SLH_Official\n2. הקלידו /start להפעלת הבוט\n3. בחרו "חיבור ארנק" מהתפריט\n4. הזינו את פרטי הארנק BNB/BSC שלכם\n5. אשרו את החיבור\n6. כעת תוכלו לראות את יתרת ה-SLH שלכם!\n\nלכל שאלה - פנו לצוות התמיכה שלנו.');
+
+        .hero-subtitle {
+            margin: 0 0 1.25rem;
+            color: var(--text-muted);
+            font-size: .98rem;
+            line-height: 1.6;
         }
-        
-        // אפקט הקלדה לכותרת
-        function typeWriterEffect() {
-            const title = document.querySelector('h1');
-            const originalText = title.textContent;
-            title.textContent = '';
-            
-            let i = 0;
-            const typing = setInterval(() => {
-                if (i < originalText.length) {
-                    title.textContent += originalText.charAt(i);
-                    i++;
-                } else {
-                    clearInterval(typing);
-                }
-            }, 100);
+
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+            margin-bottom: 1.5rem;
         }
-        
-        // אתחול כאשר הדף נטען
-        window.addEventListener('DOMContentLoaded', () => {
-            createParticles();
-            setTimeout(typeWriterEffect, 1000);
-        });
-    </script>
+
+        .badge {
+            font-size: .75rem;
+            padding: .25rem .65rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--text-muted);
+        }
+
+        .badge-accent {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: .55rem 1.1rem;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: .95rem;
+            font-weight: 500;
+            text-decoration: none;
+            color: #020617;
+            background: linear-gradient(135deg, #4fd1c5, #22c55e);
+            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.35);
+            white-space: nowrap;
+        }
+
+        .cta-button.secondary {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            box-shadow: none;
+        }
+
+        .cta-button.secondary:hover {
+            border-color: var(--accent);
+            background: rgba(79, 209, 197, 0.08);
+        }
+
+        .cta-hint {
+            font-size: .8rem;
+            color: var(--text-muted);
+        }
+
+        .hero-card {
+            border-radius: 16px;
+            padding: 1.25rem;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .hero-card h2 {
+            font-size: 1rem;
+            margin: 0 0 .75rem;
+        }
+
+        .hero-card dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            row-gap: .45rem;
+            column-gap: .5rem;
+            font-size: .88rem;
+        }
+
+        .hero-card dt {
+            color: var(--text-muted);
+        }
+
+        .hero-card dd {
+            margin: 0;
+            font-weight: 500;
+        }
+
+        /* CTA Section with side menu & expandable blocks */
+
+        .section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem 1.25rem 2.5rem;
+        }
+
+        .section h2 {
+            margin-top: 0;
+            margin-bottom: .75rem;
+            font-size: 1.4rem;
+        }
+
+        .section p {
+            margin-top: 0;
+            color: var(--text-muted);
+            font-size: .95rem;
+        }
+
+        .cta-layout {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .cta-sidebar {
+            min-width: 220px;
+            max-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+        }
+
+        .cta-sidebar h3 {
+            margin: 0 0 .4rem;
+            font-size: 1rem;
+        }
+
+        .cta-main {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .cta-main > p {
+            margin-bottom: 1rem;
+        }
+
+        .expansion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .expansion-card {
+            border-radius: 12px;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+        }
+
+        .expansion-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+            background: rgba(15, 23, 42, 0.98);
+            border-color: var(--accent);
+        }
+
+        .expansion-card h4 {
+            margin: 0 0 .3rem;
+            font-size: 1rem;
+        }
+
+        .expansion-card > p {
+            margin: 0;
+            font-size: .9rem;
+            color: var(--text-muted);
+        }
+
+        .expansion-content {
+            display: none;
+            margin-top: .75rem;
+            font-size: .9rem;
+            color: var(--text-main);
+        }
+
+        .expansion-content ul {
+            padding-right: 1rem;
+            margin: 0;
+        }
+
+        .expansion-content li {
+            margin-bottom: .2rem;
+        }
+
+        .expansion-card.expanded .expansion-content {
+            display: block;
+        }
+
+        /* Additional sections (scroll targets) */
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 1rem;
+            margin-top: 1.25rem;
+        }
+
+        .info-card {
+            border-radius: 12px;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-subtle);
+            font-size: .9rem;
+        }
+
+        .info-card h3 {
+            margin: 0 0 .4rem;
+            font-size: 1rem;
+        }
+
+        .info-card p {
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .info-card ul {
+            padding-right: 1rem;
+            margin: .35rem 0 0;
+        }
+
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            padding: .75rem 1.25rem 1.25rem;
+            font-size: .8rem;
+            color: var(--text-muted);
+            text-align: center;
+            background: #020617;
+        }
+
+        @media (max-width: 768px) {
+            .cta-layout {
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <header>
+        <div class="header-inner">
+            <div class="brand">
+                <div class="brand-logo">SLH</div>
+                <div class="brand-text">
+                    <h1>SLH Investor Gateway</h1>
+                    <span>בוט השקעות + ארנק BNB/SLH + דוחות און־צ'יין</span>
+                </div>
+            </div>
+            <nav>
+                <a href="#section-investors">משקיעים</a>
+                <a href="#section-bot-flow">איך הבוט עובד</a>
+                <a href="#section-roadmap">מפת דרכים</a>
+                <a href="#section-ecosystem">אקו־סיסטם SLH</a>
+                <a href="investors.html">דף למשקיעים</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- HERO -->
+        <section class="hero">
+            <div>
+                <h2 class="hero-title">שער המשקיעים לאקו־סיסטם SLH</h2>
+                <p class="hero-subtitle">
+                    בוט טלגרם שמאפשר לך לנהל השקעות, לצפות ביתרות און־צ'יין ואוף־צ'יין,
+                    ולראות את כל התמונה של האקו־סיסטם במקום אחד – בטלגרם ובדפדפן.
+                </p>
+
+                <div class="hero-badges">
+                    <span class="badge badge-accent">BNB Smart Chain</span>
+                    <span class="badge">On-Chain + Off-Chain Ledger</span>
+                    <span class="badge">דשבורד למשקיעים</span>
+                    <span class="badge">הרחבה ל-NFT / סטייקינג / TON בהמשך</span>
+                </div>
+
+                <div class="cta-row">
+                    <a class="cta-button" href="https://t.me/YOUR_BOT_USERNAME_HERE" target="_blank" rel="noopener">
+                        כניסה לבוט המשקיעים בטלגרם
+                    </a>
+                    <a class="cta-button secondary" href="investors.html">
+                        דף מידע למשקיעים
+                    </a>
+                </div>
+                <div class="cta-hint">
+                    מומלץ לשמור את הקישור הזה ולהעביר למשקיעים פוטנציאליים – גם לטלגרם וגם לדף המשקיעים.
+                </div>
+            </div>
+
+            <aside class="hero-card">
+                <h2>סטטוס אקו־סיסטם (תצוגה לדוגמה)</h2>
+                <dl>
+                    <dt>מחיר SLH:</dt>
+                    <dd>444 ₪ ליחידה (נומינלי)</dd>
+
+                    <dt>ערוץ ראשי:</dt>
+                    <dd>טווח השקעה: 100,000 ₪ ומעלה</dd>
+
+                    <dt>מודל:</dt>
+                    <dd>On-Chain + Off-Chain + יומן עסקאות</dd>
+
+                    <dt>ארנק קהילה:</dt>
+                    <dd>BNB + SLH על BNB Smart Chain</dd>
+
+                    <dt>שלב נוכחי:</dt>
+                    <dd>פיילוט משקיעים + בדיקות העברה אמיתית</dd>
+                </dl>
+            </aside>
+        </section>
+
+        <!-- CTA + SIDE MENU + EXPANSION CARDS -->
+        <section class="section" id="section-investors">
+            <h2>מה משקיע מקבל מהמערכת?</h2>
+            <p>
+                המטרה היא לתת למשקיע חוויית &quot;בנק פרטי&quot; על גבי טלגרם, מחוברת לבלוקצ'יין
+                ומגובה באתר מידע – עם שליטה מלאה על זרימת הכסף, הדוחות והקשרים לאקו־סיסטם העתידי.
+            </p>
+
+            <div class="cta-layout">
+                <!-- SIDE MENU -->
+                <aside class="cta-sidebar">
+                    <h3>ניווט מהיר</h3>
+                    <button class="cta-button secondary"
+                            onclick="document.getElementById('section-investors').scrollIntoView({behavior:'smooth'})">
+                        דף מידע למשקיעים (תקציר)
+                    </button>
+                    <button class="cta-button secondary"
+                            onclick="document.getElementById('section-bot-flow').scrollIntoView({behavior:'smooth'})">
+                        איך הבוט עובד
+                    </button>
+                    <button class="cta-button secondary"
+                            onclick="document.getElementById('section-roadmap').scrollIntoView({behavior:'smooth'})">
+                        מפת דרכים טכנולוגית
+                    </button>
+                    <button class="cta-button secondary"
+                            onclick="document.getElementById('section-ecosystem').scrollIntoView({behavior:'smooth'})">
+                        אקו־סיסטם SLH
+                    </button>
+                    <a class="cta-button secondary" href="investors.html">
+                        מעבר לדף המשקיעים המלא
+                    </a>
+                </aside>
+
+                <!-- MAIN AREA WITH EXPANDABLE BLOCKS -->
+                <div class="cta-main">
+                    <p>
+                        הכרטיסים הבאים מדגימים את הבלוקים המרכזיים של המערכת. לחיצה על כל בלוק תרחיב את
+                        ההסבר – כדי שמשקיע יבין בשניות מה הוא מקבל היום, ומה מתוכנן עבורו בהמשך.
+                    </p>
+
+                    <div class="expansion-grid">
+                        <div class="expansion-card" onclick="toggleExpand('exp-investor-journey')">
+                            <h4>מסע המשקיע</h4>
+                            <p>מהרגע שהוא לוחץ על הקישור – ועד לניהול השקעות מלא דרך הטלגרם.</p>
+                            <div id="exp-investor-journey" class="expansion-content">
+                                <ul>
+                                    <li>קבלת לינק לבוט המשקיעים בטלגרם / QR אישי.</li>
+                                    <li>בחירת שפה, תפריט כפתורים ברור ופקודות קצרות.</li>
+                                    <li>קישור ארנק BNB קיים או שימוש בארנק קהילתי.</li>
+                                    <li>צפייה ביתרות און־צ'יין (BNB/SLH) + אוף־צ'יין (Ledger פנימי).</li>
+                                    <li>גישה לדוחות, לינקים למסמכי השקעה, קבוצות קהילה ועוד.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="expansion-card" onclick="toggleExpand('exp-onoffchain')">
+                            <h4>און־צ'יין + אוף־צ'יין</h4>
+                            <p>מודל היברידי שמחבר בין רישום טוקנים במערכת לבין בלוקצ'יין אמיתי.</p>
+                            <div id="exp-onoffchain" class="expansion-content">
+                                <ul>
+                                    <li>Off-Chain Ledger – יומן עסקאות פנימי ל-SLH בין משתמשים.</li>
+                                    <li>פקודות On-Chain אמיתיות לשליחת BNB ו-SLH מהארנק הקהילתי.</li>
+                                    <li>שיקוף על גבי BscScan – חוזה SLH וארנק קהילה רשמיים.</li>
+                                    <li>אפשרות להרחבה ל-NFT, סטייקינג ומודלי תשואה חכמים.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="expansion-card" onclick="toggleExpand('exp-analytics')">
+                            <h4>אנליטיקה ודוחות</h4>
+                            <p>כיסוי מלא לצרכי ניהול השקעות, קהל ומשאבי קהילה.</p>
+                            <div id="exp-analytics" class="expansion-content">
+                                <ul>
+                                    <li>מעקב אחרי כל כניסה לבוט (גם דרך לינק וגם דרך QR).</li>
+                                    <li>שיוך לפי קבוצות טלגרם (משקיעים, קהילה, צוות, וכו').</li>
+                                    <li>דוחות על היקפי העברה אוף־צ'יין / און־צ'יין לפי משתמש.</li>
+                                    <li>אפשרות להרחבה לדשבורדים ו-KPIs בקרות ווב (Admin Panel).</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="expansion-card" onclick="toggleExpand('exp-future')">
+                            <h4>חזון עתידי</h4>
+                            <p>המערכת גדלה לקראת אקו־סיסטם מלא של כלכלה, למידה ומשחקיות.</p>
+                            <div id="exp-future" class="expansion-content">
+                                <ul>
+                                    <li>חיבור בוטים נוספים: TON, קזינו, ארנקי קהילה נוספים ועוד.</li>
+                                    <li>פלטפורמת מומחים – מדד PI / SLH, שיעורים, הדרכות וחלוקת טוקנים.</li>
+                                    <li>אפליקציה מאוחדת שתאגד בוטים, ארנקים, מסחר וחנות דיגיטלית.</li>
+                                    <li>מודל &quot;משפחה כסטארטאפ&quot; – ניהול זמן, כסף והון אנושי באותו מקום.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- /cta-main -->
+            </div> <!-- /cta-layout -->
+        </section>
+
+        <!-- SECTION: HOW THE BOT WORKS -->
+        <section class="section" id="section-bot-flow">
+            <h2>איך הבוט עובד – תמצית תפעול למשקיע</h2>
+            <p>
+                מבחינת משקיע, חשוב שהכול יהיה פשוט: הוא לא צריך להבין Docker, Railway או RPC.
+                הוא צריך להבין שהוא לוחץ, נכנס לבוט, רואה מספרים אמינים, ויודע את סטטוס ההשקעה שלו.
+            </p>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>1. התחברות</h3>
+                    <p>המשקיע לוחץ על לינק הבוט / סורק QR.</p>
+                    <ul>
+                        <li>הבוט מזהה את Telegram ID ומייצר לו משתמש במערכת.</li>
+                        <li>מוצג תפריט ראשי עם כפתורים (Menu / Balance / Summary / Help).</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>2. ארנק</h3>
+                    <p>קישור ארנק BNB אישי, או שימוש בכתובת קהילה.</p>
+                    <ul>
+                        <li>אפשרות לשמור ארנק חיצוני (Non-Custodial).</li>
+                        <li>משיכת נתוני BNB/SLH בלייב מרשת BNB.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>3. יתרות ודוחות</h3>
+                    <p>פקודות /balance, /summary, /onchain_balance.</p>
+                    <ul>
+                        <li>הצגת SLH Off-Chain, ערך נומינלי ועוד.</li>
+                        <li>לינקים ל-BscScan ולמסמכי השקעה רלוונטיים.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>4. העברות</h3>
+                    <p>On-Chain ו-Off-Chain להעברת ערך בין משקיעים.</p>
+                    <ul>
+                        <li>פקודות אדמין כדי לנהל זרימת SLH ו-BNB.</li>
+                        <li>בקרה על הפעילות דרך דוחות פנימיים וקבוצות טלגרם.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: ROADMAP -->
+        <section class="section" id="section-roadmap">
+            <h2>מפת דרכים טכנולוגית</h2>
+            <p>
+                הפרויקט נבנה בשכבות – כל שכבה מוסיפה יכולת, בלי לשבור את הקוד הקיים ובלי לבלבל את המשתמש.
+            </p>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>שלב 1 – בוט משקיעים + ארנק קהילה</h3>
+                    <ul>
+                        <li>בוט טלגרם פעיל על Railway.</li>
+                        <li>מסד נתונים PostgreSQL עם ledger פנימי.</li>
+                        <li>חיבור ל-BNB Smart Chain (RPC, ABI, חוזה SLH אמיתי).</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>שלב 2 – דוחות וניטור</h3>
+                    <ul>
+                        <li>לוגים לקבוצות טלגרם (Events, כניסות, העברות, QR).</li>
+                        <li>דוחות ניהול בסיסיים מתוך השרת ובהמשך ממשק אדמין וובי.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>שלב 3 – הרחבת האקו־סיסטם</h3>
+                    <ul>
+                        <li>חיבור לבוטים נוספים – TON, קזינו, חנויות דיגיטליות ועוד.</li>
+                        <li>אינטגרציה בין כל הבוטים דרך APIs פנימיים.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>שלב 4 – אפליקציה מאוחדת</h3>
+                    <ul>
+                        <li>אפליקציית SLH מאוחדת (Mobile/Web).</li>
+                        <li>ניהול ארנקים, השקעות, קהילה ומשחקיות במקום אחד.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: ECOSYSTEM -->
+        <section class="section" id="section-ecosystem">
+            <h2>אקו־סיסטם SLH – לאן זה הולך?</h2>
+            <p>
+                המערכת הזו היא השער הראשון – אבל המטרה היא אקו־סיסטם מלא: טוקן, בורסה,
+                מומחים, משפחות כסטארטאפ, משחקיות, וחיבור בין עולם הקריפטו לעולם האמיתי.
+            </p>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>SLH Token</h3>
+                    <p>טוקן חכם עם לוגיקה מורחבת (whitelist/blacklist, mint/burn, וכו').</p>
+                </div>
+
+                <div class="info-card">
+                    <h3>משפחות כסטארטאפ</h3>
+                    <p>מודל שבו כל משפחה הופכת ליחידת השקעה, למידה ויצירה.</p>
+                </div>
+
+                <div class="info-card">
+                    <h3>מומחים ומדד PI/SLH</h3>
+                    <p>מערכת תמרוץ למומחים ולתלמידים, כל שיעור משאיר חתימה טוקנומית.</p>
+                </div>
+
+                <div class="info-card">
+                    <h3>פלטפורמה גלובלית</h3>
+                    <p>אפשרות לחיבור שותפים, בורסות, עסקים ומשקיעים מרחבי העולם.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        SLH Investor Gateway · BOT_FACTORY · אתר מידע למשקיעים – גרסת דמו תפעולית לבוט פעיל על Railway + BNB Smart Chain
+    </footer>
+</div>
+
+<script>
+    function toggleExpand(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const card = el.closest('.expansion-card');
+        if (!card) return;
+        const expanded = card.classList.contains('expanded');
+        const siblings = card.parentElement.querySelectorAll('.expansion-card');
+        siblings.forEach(c => c.classList.remove('expanded'));
+        if (!expanded) {
+            card.classList.add('expanded');
+        }
+    }
+</script>
 </body>
 </html>
