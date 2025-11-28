@@ -1,160 +1,235 @@
-from __future__ import annotations
 
+import logging
 from decimal import Decimal
-from typing import Any
+from typing import Optional, Dict
 
 from web3 import Web3
-from web3.middleware import geth_poa_middleware  # type: ignore
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 
-# --- Web3 bootstrap ---------------------------------------------------------
-
-
-def get_web3() -> Web3:
-    if not settings.BSC_RPC_URL:
-        raise RuntimeError("BSC_RPC_URL is not configured")
-    w3 = Web3(Web3.HTTPProvider(settings.BSC_RPC_URL))
-    # BNB Smart Chain is POA-like – add middleware if needed
-    if not w3.middleware_onion:
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)  # type: ignore[arg-type]
-    return w3
+_w3: Optional[Web3] = None
+_token_contract = None
 
 
-# --- Minimal ERC-20 ABI for SLH --------------------------------------------
+def _get_w3() -> Optional[Web3]:
+    """Return a cached Web3 instance or None if RPC is not configured/available."""
+    global _w3
+    if _w3 is not None:
+        return _w3
 
-# מספיק לנו ABI מינימלי – כל עוד החתימות נכונות, אין חובה לכלול את כל החוזה
-MINIMAL_ERC20_ABI: list[dict[str, Any]] = [
-    {
-        "constant": False,
-        "inputs": [
-            {"name": "to", "type": "address"},
-            {"name": "amount", "type": "uint256"},
-        ],
-        "name": "transfer",
-        "outputs": [{"name": "", "type": "bool"}],
-        "stateMutability": "nonpayable",
-        "type": "function",
-    },
-    {
-        "constant": True,
-        "inputs": [],
-        "name": "decimals",
-        "outputs": [{"name": "", "type": "uint8"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-    {
-        "constant": True,
-        "inputs": [{"name": "account", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-]
+    rpc_url = settings.BSC_RPC_URL
+    if not rpc_url:
+        logger.warning("BSC_RPC_URL is not configured")
+        return None
 
-
-def get_slh_contract(w3: Web3):
-    if not settings.SLH_TOKEN_ADDRESS:
-        raise RuntimeError("SLH_TOKEN_ADDRESS is not configured")
-    return w3.eth.contract(
-        address=w3.to_checksum_address(settings.SLH_TOKEN_ADDRESS),
-        abi=MINIMAL_ERC20_ABI,
-    )
-
-
-def get_slh_decimals(w3: Web3) -> int:
-    """
-    קורא את decimals מהחוזה עצמו.
-    אם זה נכשל מסיבה כלשהי – נופל חזרה ל-SLH_TOKEN_DECIMALS מה-ENV.
-    """
-    contract = get_slh_contract(w3)
     try:
-        return int(contract.functions.decimals().call())
-    except Exception:
-        if settings.SLH_TOKEN_DECIMALS:
-            return int(settings.SLH_TOKEN_DECIMALS)
-        # ברירת מחדל בטוחה
-        return 18
+        w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 10}))
+        if not w3.is_connected():
+            logger.warning("Failed to connect to BSC RPC at %s", rpc_url)
+            return None
+        _w3 = w3
+        return _w3
+    except Exception as e:
+        logger.exception("Error creating Web3 provider: %s", e)
+        return None
 
 
-# --- Community hot wallet helpers ------------------------------------------
+def _get_token_contract():
+    """Return a minimal ERC‑20 contract instance for the SLH token, if possible."""
+    global _token_contract
+    if _token_contract is not None:
+        return _token_contract
+
+    w3 = _get_w3()
+    if w3 is None or not settings.SLH_TOKEN_ADDRESS:
+        return None
+
+    try:
+        abi = [
+            {
+                "constant": True,
+                "inputs": [{"name": "account", "type": "address"}],
+                "name": "balanceOf",
+                "outputs": [{"name": "", "type": "uint256"}],
+                "type": "function",
+            },
+            {
+                "constant": False,
+                "inputs": [
+                    {"name": "to", "type": "address"},
+                    {"name": "amount", "type": "uint256"},
+                ],
+                "name": "transfer",
+                "outputs": [{"name": "", "type": "bool"}],
+                "type": "function",
+            },
+        ]
+        _token_contract = w3.eth.contract(
+            address=Web3.to_checksum_address(settings.SLH_TOKEN_ADDRESS),
+            abi=abi,
+        )
+    except Exception as e:
+        logger.exception("Error creating SLH token contract: %s", e)
+        _token_contract = None
+
+    return _token_contract
 
 
-def _get_community_wallet(w3: Web3):
-    if not settings.COMMUNITY_WALLET_ADDRESS:
-        raise RuntimeError("COMMUNITY_WALLET_ADDRESS is not configured")
-    if not settings.COMMUNITY_WALLET_PRIVATE_KEY:
+def get_onchain_balances(address: str) -> Optional[Dict[str, Decimal]]:
+    """Return on-chain BNB & SLH balances for a given BSC address.
+
+    Returns a dict: {"bnb": Decimal | None, "slh": Decimal | None} or None if
+    Web3 is not available.
+    """
+    w3 = _get_w3()
+    if w3 is None:
+        return None
+
+    if not address:
+        return None
+
+    try:
+        checksum = Web3.to_checksum_address(address)
+    except Exception as e:
+        logger.warning("Invalid address for on-chain balance: %s (err=%s)", address, e)
+        return None
+
+    bnb: Optional[Decimal] = None
+    slh: Optional[Decimal] = None
+
+    # BNB balance
+    try:
+        wei = w3.eth.get_balance(checksum)
+        bnb = Decimal(wei) / Decimal(10 ** 18)
+    except Exception as e:
+        logger.warning("Failed to fetch BNB balance: %s", e)
+
+    # SLH token balance
+    if settings.SLH_TOKEN_ADDRESS:
+        try:
+            contract = _get_token_contract()
+            if contract is not None:
+                raw = contract.functions.balanceOf(checksum).call()
+                decimals = int(settings.SLH_TOKEN_DECIMALS or 18)
+                slh = Decimal(raw) / Decimal(10 ** decimals)
+        except Exception as e:
+            logger.warning("Failed to fetch SLH token balance: %s", e)
+
+    return {"bnb": bnb, "slh": slh}
+
+
+# ===== Sending helpers for admin tools =====
+
+def _get_private_key_bytes() -> str:
+    pk = settings.COMMUNITY_WALLET_PRIVATE_KEY
+    if not pk:
         raise RuntimeError("COMMUNITY_WALLET_PRIVATE_KEY is not configured")
 
-    from_addr = w3.to_checksum_address(settings.COMMUNITY_WALLET_ADDRESS)
-    pk = settings.COMMUNITY_WALLET_PRIVATE_KEY
+    pk = pk.strip()
     if not pk.startswith("0x"):
         raise RuntimeError("COMMUNITY_WALLET_PRIVATE_KEY must start with 0x")
+    # Web3 accepts both hex string or bytes; we keep hex string here
+    return pk
 
-    return from_addr, pk
+
+def _get_community_address(w3: Web3) -> str:
+    """Derive community wallet address from the configured private key."""
+    pk = _get_private_key_bytes()
+    acct = w3.eth.account.from_key(pk)
+    return acct.address
 
 
 def send_bnb_from_community(to_address: str, amount_bnb: Decimal) -> str:
+    """Send native BNB from the community wallet.
+
+    Returns transaction hash as hex string.
     """
-    שולח BNB מהארנק הקהילתי (hot wallet) לכתובת יעד.
-    מחזיר hash של הטרנזקציה.
-    """
-    w3 = get_web3()
-    from_addr, pk = _get_community_wallet(w3)
+    w3 = _get_w3()
+    if w3 is None:
+        raise RuntimeError("Web3 is not available (check BSC_RPC_URL)")
 
-    to_addr = w3.to_checksum_address(to_address)
-    value_wei = int(Decimal(amount_bnb) * Decimal(10**18))
+    if amount_bnb <= 0:
+        raise ValueError("Amount must be positive")
 
-    nonce = w3.eth.get_transaction_count(from_addr)
+    try:
+        to_checksum = Web3.to_checksum_address(to_address)
+    except Exception as e:
+        raise ValueError(f"Invalid destination address: {to_address}") from e
 
-    tx = {
+    pk = _get_private_key_bytes()
+    from_addr = _get_community_address(w3)
+
+    # Build transaction
+    value_wei = int(amount_bnb * Decimal(10 ** 18))
+    try:
+        gas_price = w3.eth.gas_price
+    except Exception:
+        gas_price = w3.to_wei(1, "gwei")
+
+    txn = {
         "from": from_addr,
-        "to": to_addr,
+        "to": to_checksum,
         "value": value_wei,
-        "nonce": nonce,
-        "gasPrice": w3.eth.gas_price,
+        "gasPrice": gas_price,
+        "nonce": w3.eth.get_transaction_count(from_addr),
     }
-    # הערכת gas דינמית
-    gas_limit = w3.eth.estimate_gas(tx)
-    tx["gas"] = gas_limit
 
-    signed = w3.eth.account.sign_transaction(tx, private_key=pk)
-    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    # Estimate gas (best effort)
+    try:
+        gas_limit = w3.eth.estimate_gas(txn)
+    except Exception:
+        gas_limit = 21000
+    txn["gas"] = gas_limit
+
+    signed = w3.eth.account.sign_transaction(txn, private_key=pk)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     return tx_hash.hex()
 
 
 def send_slh_from_community(to_address: str, amount_slh: Decimal) -> str:
+    """Send SLH tokens (ERC20) from the community wallet.
+
+    Returns transaction hash as hex string.
     """
-    שולח SLH (BEP-20) מהארנק הקהילתי לכתובת יעד.
+    w3 = _get_w3()
+    if w3 is None:
+        raise RuntimeError("Web3 is not available (check BSC_RPC_URL)")
 
-    amount_slh – בכמות "אנושית" (למשל 10 = 10 SLH),
-    לא בכפולה של 10**decimals.
-    """
-    w3 = get_web3()
-    from_addr, pk = _get_community_wallet(w3)
+    if amount_slh <= 0:
+        raise ValueError("Amount must be positive")
 
-    to_addr = w3.to_checksum_address(to_address)
-    contract = get_slh_contract(w3)
+    try:
+        to_checksum = Web3.to_checksum_address(to_address)
+    except Exception as e:
+        raise ValueError(f"Invalid destination address: {to_address}") from e
 
-    decimals = get_slh_decimals(w3)
-    raw_amount = int(Decimal(amount_slh) * Decimal(10**decimals))
+    contract = _get_token_contract()
+    if contract is None:
+        raise RuntimeError("Token contract is not available (check SLH_TOKEN_ADDRESS)")
 
-    nonce = w3.eth.get_transaction_count(from_addr)
+    pk = _get_private_key_bytes()
+    from_addr = _get_community_address(w3)
 
-    tx = contract.functions.transfer(to_addr, raw_amount).build_transaction(
+    decimals = int(settings.SLH_TOKEN_DECIMALS or 18)
+    raw_amount = int(amount_slh * Decimal(10 ** decimals))
+
+    txn = contract.functions.transfer(to_checksum, raw_amount).build_transaction(
         {
             "from": from_addr,
-            "nonce": nonce,
+            "nonce": w3.eth.get_transaction_count(from_addr),
             "gasPrice": w3.eth.gas_price,
         }
     )
-    # הערכת gas על בסיס החוזה
-    gas_limit = w3.eth.estimate_gas(tx)
-    tx["gas"] = gas_limit
 
-    signed = w3.eth.account.sign_transaction(tx, private_key=pk)
-    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    # Estimate gas (best effort)
+    try:
+        gas_limit = w3.eth.estimate_gas(txn)
+    except Exception:
+        gas_limit = 200000
+    txn["gas"] = gas_limit
+
+    signed = w3.eth.account.sign_transaction(txn, private_key=pk)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     return tx_hash.hex()

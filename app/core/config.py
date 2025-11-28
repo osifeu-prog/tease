@@ -45,23 +45,6 @@ class Settings(BaseSettings):
     # מספר דצימלים של טוקן SLH ברשת (לפי החוזה – כרגע הגדרנו 15 ב-ENV)
     SLH_TOKEN_DECIMALS: int = 18
 
-    # --- Telegram groups / channels for logs & management ---
-    MAIN_COMMUNITY_CHAT_ID: str | None = None
-    LOG_NEW_USERS_CHAT_ID: str | None = None
-    LOG_TRANSACTIONS_CHAT_ID: str | None = None
-    LOG_ERRORS_CHAT_ID: str | None = None
-    REFERRAL_LOGS_CHAT_ID: str | None = None
-
-    # Base URL for public personal pages / landing
-    PUBLIC_BASE_URL: str | None = None
-
-    # Optional private key for community hot wallet (for on-chain sends)
-    COMMUNITY_WALLET_PRIVATE_KEY: str | None = None
-
-    # Language defaults
-    DEFAULT_LANGUAGE: str = "he"
-    SUPPORTED_LANGUAGES: str | None = "he,en,ru,es"
-
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

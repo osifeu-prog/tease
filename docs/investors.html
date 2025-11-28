@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>SLH Investor Gateway – משקיעים אסטרטגיים</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at top, #1a2a6c, #000000 55%);
+            color: #f5f5f5;
+            direction: rtl;
+        }
+        .wrapper {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 15px;
+        }
+        .card {
+            max-width: 980px;
+            width: 100%;
+            background: rgba(0,0,0,0.75);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            padding: 32px 28px;
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(12px);
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #FFD700, #ff9800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h2 {
+            font-size: 22px;
+            margin-top: 24px;
+            margin-bottom: 8px;
+            color: #ffeb3b;
+        }
+        p {
+            line-height: 1.6;
+            margin: 6px 0;
+            color: #eeeeee;
+        }
+        .pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 40px;
+            background: rgba(255,255,255,0.08);
+            font-size: 14px;
+            margin-left: 6px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+        .box {
+            background: rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 14px;
+        }
+        .box h3 {
+            margin: 0 0 6px 0;
+            font-size: 16px;
+            color: #ffcc33;
+        }
+        .tag-row {
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tag {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            font-size: 13px;
+        }
+        a.button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #00c853, #64dd17);
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        a.button:hover {
+            filter: brightness(1.08);
+        }
+        .small {
+            font-size: 12px;
+            color: #bdbdbd;
+            margin-top: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="card">
+            <h1>SLH Investor Gateway – שער המשקיעים האסטרטגיים</h1>
+            <p>
+                <span class="pill">Minimum 100,000 ILS</span>
+                <span class="pill">On‑Chain + Off‑Chain</span>
+                <span class="pill">SLH / BNB Smart Chain</span>
+            </p>
+
+            <h2>מה הבוט יודע לעשות היום?</h2>
+            <div class="grid">
+                <div class="box">
+                    <h3>🧾 ניהול יתרות SLH (Off‑Chain)</h3>
+                    <p>לכל משקיע נפתחת יתרת SLH פנימית בפנקס ההקצאות. ניתן לבצע הקצאות ע״י האדמין, לראות /balance, /history, ולקבל סיכום מלא ב-/summary.</p>
+                </div>
+                <div class="box">
+                    <h3>🔗 קישור כתובת BNB אישית</h3>
+                    <p>המשקיע מקשר את הארנק שלו על BNB Smart Chain באמצעות /link_wallet. הכתובת משמשת לצפייה ביתרות ולפעולות עתידיות.</p>
+                </div>
+                <div class="box">
+                    <h3>🌐 חיבור חי ל-BSC</h3>
+                    <p>הבוט מחובר ל-RPC של BNB Chain, קורא את החוזה של SLH ומציג יתרות BNB ו‑SLH ישירות מהבלוקצ׳יין יחד עם קישורים מוכנים ל‑BscScan.</p>
+                </div>
+                <div class="box">
+                    <h3>🧑‍💼 כלים לאדמין</h3>
+                    <p>פקודות /admin_credit, /admin_ledger, ותפריט אדמין עם כפתורים להסבר + שליחת BNB/SLH אונ‑צ׳יין מהארנק הקהילתי.</p>
+                </div>
+            </div>
+
+            <h2>און‑צ׳יין ←→ אוף‑צ׳יין – איך זה עובד?</h2>
+            <p>המערכת נבנתה מלכתחילה כשילוב של:</p>
+            <ul>
+                <li>📚 Ledger פנימי – משמש להקצאות SLH, לחישובי תשואה והיסטוריית העברות בין משקיעים.</li>
+                <li>⛓️ בלוקצ׳יין – חוזה SLH על BNB Smart Chain, עם אפשרות לשליחת BNB ו‑SLH מהארנק הקהילתי אל ארנקי המשקיעים.</li>
+            </ul>
+            <p>בשלב זה, ההמרה בין המערכות נעשית ע״י פעולות אדמין יזומות (on‑chain sends), בעוד שהמשקיע חווה בוט אחד, תפריטים ברורים ודשבורד מסכם.</p>
+
+            <h2>מסך המשקיע בבוט</h2>
+            <p>המשקיע מקבל בבוט:</p>
+            <ul>
+                <li>🔹 /whoami – פרופיל משקיע + מזהה טלגרם + כתובת BNB.</li>
+                <li>🔹 /balance – יתרה פנימית ב‑SLH + ערך נומינלי בש״ח.</li>
+                <li>🔹 /summary – דשבורד כולל הכולל: פרופיל, יתרות, קישורים ל‑BscScan ו‑Docs.</li>
+                <li>🔹 /menu – חוויית כפתורים מלאה, עם ניווט נוח לכל הפעולות העיקריות.</li>
+            </ul>
+
+            <h2>תמונת מצב למשקיעים</h2>
+            <p>המערכת קיימת כבר היום על שרת Production (Railway), מחוברת למסד נתונים PostgreSQL, ומוכנה להרחבה במספר צירים:</p>
+            <div class="grid">
+                <div class="box">
+                    <h3>📈 הרחבת דוחות</h3>
+                    <p>הוספת לוחות בקרה (Dashboards) למשקיעים ואדמין, כולל פילוחים לפי סבבי השקעה ומועדי הצטרפות.</p>
+                </div>
+                <div class="box">
+                    <h3>🌍 תמיכה רב־לשונית</h3>
+                    <p>עברית, אנגלית ועוד שתי שפות – גם בבוט וגם באתר ה‑Docs, כך שניתן לשתף את שער המשקיעים גלובלית.</p>
+                </div>
+                <div class="box">
+                    <h3>🤝 אינטגרציה עם יתר האקו‑סיסטם</h3>
+                    <p>חיבור לבוטי הקהילה, לאזורי החנויות, ל‑TON ולשכבת ה‑NFT, כך שהמשקיע רואה היכן ה‑SLH שלו פועל בפועל.</p>
+                </div>
+            </div>
+
+            <div class="tag-row">
+                <span class="tag">SLH Ecosystem</span>
+                <span class="tag">Investor Gateway</span>
+                <span class="tag">BNB Smart Chain</span>
+                <span class="tag">On‑Chain + Off‑Chain</span>
+                <span class="tag">Telegram Bot</span>
+            </div>
+
+            <a class="button" href="index.html">⬅ חזרה לעמוד הראשי</a>
+
+            <p class="small">
+                אין באמור משום ייעוץ השקעות. כל החלטת השקעה נעשית על אחריות המשקיע בלבד.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
