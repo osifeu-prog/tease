@@ -1,6 +1,8 @@
 import logging
 from decimal import Decimal
+from io import BytesIO
 
+import qrcode
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
     Application,
@@ -28,6 +30,7 @@ class InvestorWalletBot:
     def __init__(self):
         self.application: Application | None = None
         self.bot: Bot | None = None
+        self.bot_username: str | None = None
 
     # ===== DB helper =====
     def _db(self):
@@ -42,6 +45,14 @@ class InvestorWalletBot:
         self.application = Application.builder().token(settings.BOT_TOKEN).build()
         self.bot = self.application.bot
 
+        # Try to resolve bot username for deep links / QR
+        try:
+            me = await self.bot.get_me()
+            self.bot_username = me.username
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to get bot username: %s", e)
+            self.bot_username = None
+
         # Commands
         self.application.add_handler(CommandHandler("start", self.cmd_start))
         self.application.add_handler(CommandHandler("help", self.cmd_help))
@@ -55,8 +66,13 @@ class InvestorWalletBot:
         self.application.add_handler(CommandHandler("whoami", self.cmd_whoami))
         self.application.add_handler(CommandHandler("summary", self.cmd_summary))
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
+        # Extra UX commands
+        self.application.add_handler(CommandHandler("language", self.cmd_language))
+        self.application.add_handler(CommandHandler("my_link", self.cmd_my_link))
+        self.application.add_handler(CommandHandler("my_qr", self.cmd_my_qr))
 
         # Admin-only commands
+
         self.application.add_handler(CommandHandler("admin_credit", self.cmd_admin_credit))
         self.application.add_handler(CommandHandler("admin_menu", self.cmd_admin_menu))
         self.application.add_handler(CommandHandler("admin_list_users", self.cmd_admin_list_users))
@@ -79,6 +95,9 @@ class InvestorWalletBot:
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text)
         )
+
+        # Error handler to route exceptions into Telegram + logs
+        self.application.add_error_handler(self.on_error)
 
         # חובה ב-ptb v21 לפני process_update
         await self.application.initialize()
@@ -177,6 +196,7 @@ class InvestorWalletBot:
         חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו.
         """
         user = self._ensure_user(update)
+        await self._log_start(update, user)
 
         min_invest = 100_000
         balance = user.balance_slh or Decimal("0")
@@ -921,6 +941,11 @@ class InvestorWalletBot:
 
     # ===== Text handler =====
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat = update.effective_chat
+        if chat and chat.type != "private":
+            # Ignore free text in groups/channels – bot only reacts to explicit commands there.
+            return
+
         state = context.user_data.get("state")
         text = (update.message.text or "").strip()
 
@@ -1019,6 +1044,234 @@ class InvestorWalletBot:
 
         finally:
             db.close()
+
+
+# ===== Utility helpers =====
+def _get_lang(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Resolve user language from Telegram + defaults."""
+    tg_user = update.effective_user
+    raw = getattr(tg_user, "language_code", None) or settings.DEFAULT_LANGUAGE or "en"
+    code = (raw or "en")[:2].lower()
+    supported = (settings.SUPPORTED_LANGUAGES or "en").split(",")
+    if code not in supported:
+        return settings.DEFAULT_LANGUAGE or "en"
+    return code
+
+async def _log_event(self, text: str, category: str = "events"):
+    """Send a log line into the appropriate Telegram group if configured."""
+    if not self.bot:
+        return
+
+    chat_id: str | None = None
+    if category == "new_user":
+        chat_id = settings.LOG_NEW_USERS_CHAT_ID
+    elif category == "tx":
+        chat_id = settings.LOG_TRANSACTIONS_CHAT_ID
+    elif category == "error":
+        chat_id = settings.LOG_ERRORS_CHAT_ID
+    elif category == "ref":
+        chat_id = settings.REFERRAL_LOGS_CHAT_ID
+
+    if not chat_id:
+        return
+
+    try:
+        await self.bot.send_message(chat_id=int(chat_id), text=text[:4000])
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed sending log message: %s", e)
+
+async def _log_start(self, update: Update, user: models.User):
+    lang = self._get_lang(update, None)
+    text = (
+        "👋 New /start from investor\n"
+        f"ID: {user.telegram_id}\n"
+        f"Username: @{user.username or '-'}\n"
+        f"Lang: {lang}\n"
+        f"Chat type: {update.effective_chat.type if update.effective_chat else '?'}"
+    )
+    await self._log_event(text, category="new_user")
+
+async def _log_internal_transfer(self, sender: models.User, receiver: models.User, amount: Decimal, tx: models.Transaction):
+    text = (
+        "💸 Internal SLH transfer\n"
+        f"From: @{sender.username or sender.telegram_id} ({sender.telegram_id})\n"
+        f"To: @{receiver.username or receiver.telegram_id} ({receiver.telegram_id})\n"
+        f"Amount: {amount:.4f} SLH\n"
+        f"Tx ID: {tx.id}"
+    )
+    await self._log_event(text, category="tx")
+
+async def on_error(self, update: object, context: ContextTypes.DEFAULT_TYPE):
+    logger.exception("Error while handling update: %s", context.error)
+    msg = f"⚠️ Bot error: {context.error}"
+    await self._log_event(msg, category="error")
+
+# ===== Extra user commands =====
+async def cmd_language(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show language info and how auto-detection works.
+
+    Phase 1: we auto-detect from Telegram UI language and support 4 languages
+    in the text templates. This command just explains the behavior.
+    """
+    lang = self._get_lang(update, context)
+    await update.message.reply_text(
+        "🌐 Language detection\n"
+        f"Detected language code from Telegram: {getattr(update.effective_user, 'language_code', 'unknown')}\n"
+        f"Bot working language for you now: {lang}\n\n"
+        "At this stage the bot supports: he / en / ru / es for the main flows.\n"
+        "The language is detected automatically from your Telegram settings.\n"
+        "In a next iteration we can add a per-user override command as well."
+    )
+
+async def cmd_my_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Return a personal invite link + public landing link for this investor."""
+    user = self._ensure_user(update)
+    lang = self._get_lang(update, context)
+
+    # Deep-link into the bot with a referral payload
+    if self.bot_username:
+        deep_link = f"https://t.me/{self.bot_username}?start=ref_{user.telegram_id}"
+    else:
+        deep_link = "https://t.me/share/url?url=Start%20the%20investor%20bot"
+
+    base_public = (
+        settings.PUBLIC_BASE_URL
+        or settings.DOCS_URL
+        or settings.WEBHOOK_URL
+        or ""
+    )
+    personal_page = None
+    if base_public:
+        personal_page = base_public.rstrip("/") + f"/personal/{user.telegram_id}"
+
+    lines = []
+    if lang == "he":
+        lines.append("🔗 הקישור האישי שלך למשקיע:")
+        lines.append(deep_link)
+        if personal_page:
+            lines.append("")
+            lines.append("🌐 אזור המשקיע האישי שלך:")
+            lines.append(personal_page)
+    else:
+        lines.append("🔗 Your personal investor invite link:")
+        lines.append(deep_link)
+        if personal_page:
+            lines.append("")
+            lines.append("🌐 Your personal investor page:")
+            lines.append(personal_page)
+
+    await update.message.reply_text("\n".join(lines))
+
+async def cmd_my_qr(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate a QR code for the personal deep-link to this bot."""
+    user = self._ensure_user(update)
+    if not self.bot_username:
+        await update.message.reply_text("Bot username not yet available, please try again in a minute.")
+        return
+
+    deep_link = f"https://t.me/{self.bot_username}?start=ref_{user.telegram_id}"
+
+    # Generate QR image in-memory
+    img = qrcode.make(deep_link)
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    await update.message.reply_photo(
+        photo=buffer,
+        caption="📲 Scan this QR to open the bot with your personal referral link.",
+    )
+
+# ===== Admin helper for groups (placeholder for extended management) =====
+async def cmd_admin_groups(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show configured group IDs and basic explanation.
+
+    This is a lightweight management view; real moderation tools can be
+    added on top of this skeleton later.
+    """
+    if not self._is_admin(update.effective_user.id):
+        await update.message.reply_text("Admin only.")
+        return
+
+    lines = [
+        "👥 Group / log configuration:",
+        f"MAIN_COMMUNITY_CHAT_ID = {settings.MAIN_COMMUNITY_CHAT_ID or '-'}",
+        f"LOG_NEW_USERS_CHAT_ID = {settings.LOG_NEW_USERS_CHAT_ID or '-'}",
+        f"LOG_TRANSACTIONS_CHAT_ID = {settings.LOG_TRANSACTIONS_CHAT_ID or '-'}",
+        f"LOG_ERRORS_CHAT_ID = {settings.LOG_ERRORS_CHAT_ID or '-'}",
+        f"REFERRAL_LOGS_CHAT_ID = {settings.REFERRAL_LOGS_CHAT_ID or '-'}",
+        "",
+        "The bot will *not* react to free text in these groups; it only",
+        "reacts to explicit commands and admin actions.",
+    ]
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+
+async def cmd_admin_send_bnb(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin-only: send BNB from COMMUNITY_WALLET_ADDRESS to a target address."""
+    if not self._is_admin(update.effective_user.id):
+        await update.message.reply_text("Admin only.")
+        return
+
+    parts = (update.message.text or "").split()
+    if len(parts) != 3:
+        await update.message.reply_text("Usage: /admin_send_bnb <bsc_address> <amount_bnb>")
+        return
+
+    to_address = parts[1]
+    try:
+        amount = Decimal(parts[2])
+    except Exception:  # noqa: BLE001
+        await update.message.reply_text("Invalid amount.")
+        return
+
+    from app import blockchain as _bc  # local import to avoid cycles
+    try:
+        tx_hash = _bc.send_bnb_from_community(to_address, amount)
+    except Exception as e:  # noqa: BLE001
+        await update.message.reply_text(f"Error sending BNB: {e}")
+        return
+
+    link = f"{settings.BSC_SCAN_BASE.rstrip('/')}/tx/{tx_hash}" if settings.BSC_SCAN_BASE else tx_hash
+    await update.message.reply_text(
+        "✅ On-chain BNB transfer sent.\n"
+        f"Tx hash: {tx_hash}\n"
+        f"BscScan: {link}"
+    )
+
+async def cmd_admin_send_slh(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin-only: send SLH tokens from COMMUNITY_WALLET_ADDRESS to a target address."""
+    if not self._is_admin(update.effective_user.id):
+        await update.message.reply_text("Admin only.")
+        return
+
+    parts = (update.message.text or "").split()
+    if len(parts) != 3:
+        await update.message.reply_text("Usage: /admin_send_slh <bsc_address> <amount_slh>")
+        return
+
+    to_address = parts[1]
+    try:
+        amount = Decimal(parts[2])
+    except Exception:  # noqa: BLE001
+        await update.message.reply_text("Invalid amount.")
+        return
+
+    from app import blockchain as _bc  # local import to avoid cycles
+    try:
+        tx_hash = _bc.send_slh_from_community(to_address, amount)
+    except Exception as e:  # noqa: BLE001
+        await update.message.reply_text(f"Error sending SLH: {e}")
+        return
+
+    link = f"{settings.BSC_SCAN_BASE.rstrip('/')}/tx/{tx_hash}" if settings.BSC_SCAN_BASE else tx_hash
+    await update.message.reply_text(
+        "✅ On-chain SLH transfer sent.\n"
+        f"Tx hash: {tx_hash}\n"
+        f"BscScan: {link}"
+    )
+
 
 
 _bot_instance = InvestorWalletBot()
