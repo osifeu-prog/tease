@@ -1,4 +1,3 @@
-# app/monitoring.py
 import logging
 from typing import Any, Dict, List
 
@@ -16,7 +15,6 @@ def _check_database(checks: Dict[str, Any]) -> str:
     status = "ok"
     try:
         db = SessionLocal()
-        # בדיקה מינימלית – SELECT 1
         db.execute(text("SELECT 1"))
         checks["database"] = {"ok": True}
     except Exception as e:
@@ -69,7 +67,6 @@ def _check_telegram(checks: Dict[str, Any], quick: bool) -> str:
         return "degraded"
 
     if quick:
-        # במצב מהיר – לא קוראים ל-getMe, רק בודקים שקיים טוקן
         checks["telegram"] = {"ok": True}
         return "ok"
 
@@ -130,33 +127,29 @@ def run_selftest(quick: bool = False) -> Dict[str, Any]:
     - Telegram Bot
     - BSC RPC + Community Wallet
 
-    quick=True -> פחות אגרסיבי (לא קורא ל-getMe של טלגרם).
+    quick=True -> בדיקה מהירה (בלי getMe).
     """
     checks: Dict[str, Any] = {}
     overall = "ok"
 
-    # DB
     st = _check_database(checks)
     if st == "error":
         overall = "error"
     elif st == "degraded" and overall == "ok":
         overall = "degraded"
 
-    # ENV
     st = _check_env(checks)
     if st == "error":
         overall = "error"
     elif st == "degraded" and overall == "ok":
         overall = "degraded"
 
-    # Telegram
     st = _check_telegram(checks, quick=quick)
     if st == "error":
         overall = "error"
     elif st == "degraded" and overall == "ok":
         overall = "degraded"
 
-    # BSC
     st = _check_bsc(checks)
     if st == "error":
         overall = "error"
