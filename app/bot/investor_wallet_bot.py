@@ -10,12 +10,12 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-
 from sqlalchemy import or_
 
 from app.core.config import settings
 from app.database import SessionLocal
 from app import models, crud, blockchain
+from app.monitoring import run_selftest
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ class InvestorWalletBot:
         self.application.add_handler(CommandHandler("wallet", self.cmd_wallet))
         self.application.add_handler(CommandHandler("link_wallet", self.cmd_link_wallet))
         self.application.add_handler(CommandHandler("balance", self.cmd_balance))
-        self.application.add_handler(CommandHandler("onchain_balance", self.cmd_onchain_balance))
+        self.application.add_handler(
+            CommandHandler("onchain_balance", self.cmd_onchain_balance)
+        )
         self.application.add_handler(CommandHandler("history", self.cmd_history))
         self.application.add_handler(CommandHandler("transfer", self.cmd_transfer))
         self.application.add_handler(CommandHandler("send_slh", self.cmd_send_slh))
@@ -57,11 +59,26 @@ class InvestorWalletBot:
         self.application.add_handler(CommandHandler("summary", self.cmd_summary))
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
 
+        # NEW: quick health check command (לכולם)
+        self.application.add_handler(CommandHandler("ping", self.cmd_ping))
+
         # Admin-only commands
-        self.application.add_handler(CommandHandler("admin_credit", self.cmd_admin_credit))
-        self.application.add_handler(CommandHandler("admin_menu", self.cmd_admin_menu))
-        self.application.add_handler(CommandHandler("admin_list_users", self.cmd_admin_list_users))
-        self.application.add_handler(CommandHandler("admin_ledger", self.cmd_admin_ledger))
+        self.application.add_handler(
+            CommandHandler("admin_credit", self.cmd_admin_credit)
+        )
+        self.application.add_handler(
+            CommandHandler("admin_menu", self.cmd_admin_menu)
+        )
+        self.application.add_handler(
+            CommandHandler("admin_list_users", self.cmd_admin_list_users)
+        )
+        self.application.add_handler(
+            CommandHandler("admin_ledger", self.cmd_admin_ledger)
+        )
+        # NEW: admin self-test command
+        self.application.add_handler(
+            CommandHandler("admin_selftest", self.cmd_admin_selftest)
+        )
 
         # Callback for inline buttons – משקיעים
         self.application.add_handler(
@@ -106,26 +123,22 @@ class InvestorWalletBot:
             db.close()
 
     def _slh_price_nis(self) -> Decimal:
-        """
-        מחיר SLH בניס (ברירת מחדל: 444) כ-Decimal.
-        """
+        """מחיר SLH בניס (ברירת מחדל: 444) כ-Decimal."""
         try:
             return Decimal(str(settings.SLH_PRICE_NIS))
         except Exception:
             return Decimal("444")
 
     def _investor_tier(self, balance: Decimal) -> str:
-        """
-        הגדרת tier משקיע לפי יתרת SLH.
-        """
+        """הגדרת tier משקיע לפי יתרת SLH."""
         if balance >= Decimal("500000"):
-            return "🚀 Ultra Strategic"
+            return " Ultra Strategic"
         if balance >= Decimal("100000"):
-            return "🏆 Strategic"
+            return " Strategic"
         if balance >= Decimal("10000"):
-            return "💼 Core"
+            return " Core"
         if balance > 0:
-            return "🌱 Early"
+            return " Early"
         return "—"
 
     def _is_admin(self, user_id: int) -> bool:
@@ -133,24 +146,25 @@ class InvestorWalletBot:
         return bool(admin_id) and str(user_id) == str(admin_id)
 
     # ===== Menus (inline keyboards) =====
-
     def _main_menu_keyboard(self) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("📊 Summary", callback_data="MENU_SUMMARY"),
-                    InlineKeyboardButton("💰 Balance", callback_data="MENU_BALANCE"),
+                    InlineKeyboardButton(" Summary", callback_data="MENU_SUMMARY"),
+                    InlineKeyboardButton(" Balance", callback_data="MENU_BALANCE"),
                 ],
                 [
-                    InlineKeyboardButton("👛 Wallet", callback_data="MENU_WALLET"),
-                    InlineKeyboardButton("🔗 Link Wallet", callback_data="MENU_LINK_WALLET"),
+                    InlineKeyboardButton(" Wallet", callback_data="MENU_WALLET"),
+                    InlineKeyboardButton(
+                        " Link Wallet", callback_data="MENU_LINK_WALLET"
+                    ),
                 ],
                 [
-                    InlineKeyboardButton("📜 History", callback_data="MENU_HISTORY"),
-                    InlineKeyboardButton("🔁 Transfer", callback_data="MENU_TRANSFER"),
+                    InlineKeyboardButton(" History", callback_data="MENU_HISTORY"),
+                    InlineKeyboardButton(" Transfer", callback_data="MENU_TRANSFER"),
                 ],
                 [
-                    InlineKeyboardButton("📄 Docs", callback_data="MENU_DOCS"),
+                    InlineKeyboardButton(" Docs", callback_data="MENU_DOCS"),
                 ],
             ]
         )
@@ -160,31 +174,26 @@ class InvestorWalletBot:
             [
                 [
                     InlineKeyboardButton(
-                        "💳 Admin credit help", callback_data="ADMIN_HELP_CREDIT"
+                        " Admin credit help", callback_data="ADMIN_HELP_CREDIT"
                     )
                 ],
                 [
                     InlineKeyboardButton(
-                        "📜 Ledger overview", callback_data="ADMIN_HELP_HISTORY"
+                        " Ledger overview", callback_data="ADMIN_HELP_HISTORY"
                     )
                 ],
             ]
         )
 
     # ===== Commands =====
-
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו.
-        """
+        """חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו."""
         user = self._ensure_user(update)
-
         min_invest = 100_000
         balance = user.balance_slh or Decimal("0")
         has_wallet = bool(user.bnb_address)
 
-        text_lines = []
-
+        text_lines: list[str] = []
         text_lines.append("Welcome to the SLH Investor Gateway.")
         text_lines.append("")
         text_lines.append(
@@ -209,10 +218,16 @@ class InvestorWalletBot:
                 "2) Once your existing investment is recorded, you will see your SLH balance via /balance."
             )
         else:
-            text_lines.append(f"2) Current SLH balance: {balance:.4f} (see /balance).")
+            text_lines.append(
+                f"2) Current SLH balance: {balance:.4f} (see /balance)."
+            )
 
-        text_lines.append("3) Use /wallet to view full wallet details and ecosystem links.")
-        text_lines.append("4) Use /whoami to see your ID, username and wallet status.")
+        text_lines.append(
+            "3) Use /wallet to view full wallet details and ecosystem links."
+        )
+        text_lines.append(
+            "4) Use /whoami to see your ID, username and wallet status."
+        )
         text_lines.append("5) Use /summary for a full investor dashboard.")
         text_lines.append("6) Use /history to review your latest transactions.")
         text_lines.append("")
@@ -223,21 +238,22 @@ class InvestorWalletBot:
     async def cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "SLH Wallet Bot – Help\n\n"
-            "/start       – Intro and onboarding\n"
-            "/menu        – Main menu with buttons\n"
-            "/summary     – Full investor dashboard (wallet + balance + profile)\n"
-            "/wallet      – Wallet details and ecosystem links\n"
+            "/start – Intro and onboarding\n"
+            "/menu – Main menu with buttons\n"
+            "/summary – Full investor dashboard (wallet + balance + profile)\n"
+            "/wallet – Wallet details and ecosystem links\n"
             "/link_wallet – Link your personal BNB (BSC) address\n"
-            "/balance     – View your SLH off-chain balance (+ On-Chain if available)\n"
-            "/history     – Last transactions in the internal ledger\n"
-            "/transfer    – Internal off-chain transfer to another user\n"
-            "/whoami      – See your Telegram ID, username and wallet status\n"
-            "/docs        – Open the official SLH investor docs\n\n"
+            "/balance – View your SLH off-chain balance (+ On-Chain if available)\n"
+            "/history – Last transactions in the internal ledger\n"
+            "/transfer – Internal off-chain transfer to another user\n"
+            "/whoami – See your Telegram ID, username and wallet status\n"
+            "/docs – Open the official SLH investor docs\n\n"
             "Admin only:\n"
-            "/admin_menu        – Admin tools overview\n"
-            "/admin_credit      – Credit SLH to a user\n"
-            "/admin_list_users  – List users with balances\n"
-            "/admin_ledger      – Global ledger view (last txs)\n\n"
+            "/admin_menu – Admin tools overview\n"
+            "/admin_credit – Credit SLH to a user\n"
+            "/admin_list_users – List users with balances\n"
+            "/admin_ledger – Global ledger view (last txs)\n"
+            "/admin_selftest – Run deep self-test (DB/ENV/BSC/Telegram)\n\n"
             "At this stage there is no redemption of principal – "
             "only usage of SLH units inside the ecosystem.\n"
             "BNB and gas remain in your own wallet via external providers."
@@ -245,9 +261,7 @@ class InvestorWalletBot:
         await update.message.reply_text(text)
 
     async def cmd_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        תפריט הכפתורים הראשי למשקיע.
-        """
+        """תפריט הכפתורים הראשי למשקיע."""
         await update.message.reply_text(
             "SLH Investor Menu – choose an action:",
             reply_markup=self._main_menu_keyboard(),
@@ -255,15 +269,14 @@ class InvestorWalletBot:
 
     async def cmd_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = self._ensure_user(update)
-        addr = settings.COMMUNITY_WALLET_ADDRESS or "<community wallet not set>"
-        token_addr = settings.SLH_TOKEN_ADDRESS or "<SLH token not set>"
-
+        addr = settings.COMMUNITY_WALLET_ADDRESS or ""
+        token_addr = settings.SLH_TOKEN_ADDRESS or ""
         user_addr = (
             user.bnb_address
             or "You have not linked a BNB address yet (see /link_wallet)."
         )
 
-        lines = []
+        lines: list[str] = []
         lines.append("SLH Wallet Overview")
         lines.append("")
         lines.append("Your BNB address (BSC):")
@@ -275,7 +288,9 @@ class InvestorWalletBot:
         lines.append("SLH token address:")
         lines.append(f"{token_addr}")
         lines.append("")
-        lines.append(f"Each SLH nominally represents {self._slh_price_nis():.0f} ILS.")
+        lines.append(
+            f"Each SLH nominally represents {self._slh_price_nis():.0f} ILS."
+        )
 
         if settings.BSC_SCAN_BASE and addr and not addr.startswith("<"):
             lines.append("")
@@ -302,8 +317,8 @@ class InvestorWalletBot:
     async def cmd_link_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         שני מצבים:
-        1) /link_wallet              -> שואל אותך לשלוח כתובת בהודעה הבאה
-        2) /link_wallet 0xABC...     -> שומר מיד את הכתובת מהפקודה
+        1) /link_wallet -> שואל אותך לשלוח כתובת בהודעה הבאה
+        2) /link_wallet 0xABC... -> שומר מיד את הכתובת מהפקודה
         """
         tg_user = update.effective_user
         self._ensure_user(update)
@@ -313,7 +328,8 @@ class InvestorWalletBot:
             addr = context.args[0].strip()
             if not addr.startswith("0x") or len(addr) < 20:
                 await update.message.reply_text(
-                    "Address seems invalid. Usage: /link_wallet 0xyouraddress or send the address after /link_wallet."
+                    "Address seems invalid.\n"
+                    "Usage: /link_wallet 0xyouraddress or send the address after /link_wallet."
                 )
                 return
 
@@ -349,7 +365,7 @@ class InvestorWalletBot:
             price = self._slh_price_nis()
             value_nis = balance * price
 
-            lines = []
+            lines: list[str] = []
             lines.append("SLH Off-Chain Balance")
             lines.append("")
             lines.append(f"Current balance: {balance:.4f} SLH")
@@ -357,6 +373,9 @@ class InvestorWalletBot:
                 f"Nominal value: {value_nis:.2f} ILS (at {price:.0f} ILS per SLH)"
             )
             lines.append("")
+
+            onchain_bnb = None
+            onchain_slh = None
 
             if user.bnb_address and settings.BSC_RPC_URL:
                 try:
@@ -378,6 +397,7 @@ class InvestorWalletBot:
                     lines.append(f"- SLH: {onchain_slh:.6f} SLH")
                 else:
                     lines.append("- SLH: unavailable (token / RPC / node error)")
+
                 lines.append("")
 
             lines.append(
@@ -392,9 +412,7 @@ class InvestorWalletBot:
             db.close()
 
     async def cmd_whoami(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        נותן חוויית "אני רשום במערכת".
-        """
+        """נותן חוויית "אני רשום במערכת"."""
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -403,12 +421,14 @@ class InvestorWalletBot:
             )
             balance = user.balance_slh or Decimal("0")
 
-            lines = []
+            lines: list[str] = []
             lines.append("Your SLH Investor Profile")
             lines.append("")
             lines.append(f"Telegram ID: {tg_user.id}")
             lines.append(
-                f"Username: @{tg_user.username}" if tg_user.username else "Username: N/A"
+                f"Username: @{tg_user.username}"
+                if tg_user.username
+                else "Username: N/A"
             )
             lines.append(
                 f"BNB address: {user.bnb_address or 'Not linked yet (use /link_wallet)'}"
@@ -424,9 +444,7 @@ class InvestorWalletBot:
             db.close()
 
     async def cmd_summary(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        דשבורד משקיע במסך אחד.
-        """
+        """דשבורד משקיע במסך אחד."""
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -437,15 +455,13 @@ class InvestorWalletBot:
             price = self._slh_price_nis()
             value_nis = balance * price
 
-            addr = settings.COMMUNITY_WALLET_ADDRESS or "<community wallet not set>"
-            token_addr = settings.SLH_TOKEN_ADDRESS or "<SLH token not set>"
-            user_addr = (
-                user.bnb_address
-                or "Not linked yet (use /link_wallet)."
-            )
+            addr = settings.COMMUNITY_WALLET_ADDRESS or ""
+            token_addr = settings.SLH_TOKEN_ADDRESS or ""
+            user_addr = user.bnb_address or "Not linked yet (use /link_wallet)."
 
             onchain_bnb = None
             onchain_slh = None
+
             if user.bnb_address and settings.BSC_RPC_URL:
                 try:
                     on = blockchain.get_onchain_balances(user.bnb_address)
@@ -458,7 +474,7 @@ class InvestorWalletBot:
             hypothetical_yield_rate = Decimal("0.10")
             projected_yearly_yield = balance * hypothetical_yield_rate
 
-            lines = []
+            lines: list[str] = []
             lines.append("SLH Investor Dashboard")
             lines.append("")
             lines.append("Profile:")
@@ -484,7 +500,9 @@ class InvestorWalletBot:
             lines.append("")
 
             if user.bnb_address and (onchain_bnb is not None or onchain_slh is not None):
-                lines.append("On-Chain (BNB Chain) – based on your BNB address:")
+                lines.append(
+                    "On-Chain (BNB Chain) – based on your BNB address:"
+                )
                 if onchain_bnb is not None:
                     lines.append(f"- BNB: {onchain_bnb:.6f} BNB")
                 else:
@@ -510,23 +528,24 @@ class InvestorWalletBot:
                 lines.append(f"Investor Docs: {settings.DOCS_URL}")
 
             lines.append("")
-            lines.append("Key commands: /menu, /wallet, /balance, /history, /transfer, /docs, /help")
+            lines.append(
+                "Key commands: /menu, /wallet, /balance, /history, /transfer, /docs, /help"
+            )
 
             await update.message.reply_text("\n".join(lines))
         finally:
             db.close()
 
     async def cmd_docs(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        קישור למסמכי ה-DOCS הרשמיים (README למשקיעים).
-        """
+        """קישור למסמכי ה-DOCS הרשמיים (README למשקיעים)."""
         if not settings.DOCS_URL:
             await update.message.reply_text(
-                "Investor docs URL is not configured yet. Please contact the SLH team."
+                "Investor docs URL is not configured yet.\n"
+                "Please contact the SLH team."
             )
             return
 
-        text_lines = []
+        text_lines: list[str] = []
         text_lines.append("SLH Investor Documentation")
         text_lines.append("")
         text_lines.append(
@@ -537,11 +556,11 @@ class InvestorWalletBot:
         text_lines.append(
             "You can share this link with potential strategic partners and investors."
         )
-
         await update.message.reply_text("\n".join(text_lines))
 
-
-    async def cmd_onchain_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def cmd_onchain_balance(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Show live on-chain BNB & SLH balances for the linked wallet."""
         db = self._db()
         try:
@@ -552,7 +571,7 @@ class InvestorWalletBot:
 
             if not user.bnb_address:
                 await update.message.reply_text(
-                    "You have not linked a BNB address yet. Use /link_wallet first."
+                    "You have not linked a BNB address yet.\nUse /link_wallet first."
                 )
                 return
 
@@ -573,14 +592,16 @@ class InvestorWalletBot:
                 )
                 return
 
-            lines = []
+            lines: list[str] = []
             lines.append("On-Chain Balances (BNB Smart Chain)")
             lines.append(f"Address: {user.bnb_address}")
             lines.append("")
+
             if onchain_bnb is not None:
                 lines.append(f"- BNB: {onchain_bnb:.6f} BNB")
             else:
                 lines.append("- BNB: unavailable (RPC or address error)")
+
             if onchain_slh is not None:
                 lines.append(f"- SLH: {onchain_slh:.6f} SLH")
             else:
@@ -592,12 +613,13 @@ class InvestorWalletBot:
                 lines.append("On BscScan:")
                 lines.append(f"- Wallet: {base}/address/{user.bnb_address}")
                 if settings.SLH_TOKEN_ADDRESS:
-                    lines.append(f"- SLH token: {base}/token/{settings.SLH_TOKEN_ADDRESS}")
+                    lines.append(
+                        f"- SLH token: {base}/token/{settings.SLH_TOKEN_ADDRESS}"
+                    )
 
             await update.message.reply_text("\n".join(lines))
         finally:
             db.close()
-
 
     async def cmd_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -610,7 +632,6 @@ class InvestorWalletBot:
             user = crud.get_or_create_user(
                 db, telegram_id=tg_user.id, username=tg_user.username
             )
-
             my_tid = user.telegram_id
 
             q = (
@@ -624,7 +645,6 @@ class InvestorWalletBot:
                 .order_by(models.Transaction.created_at.desc())
                 .limit(10)
             )
-
             txs = q.all()
 
             if not txs:
@@ -633,7 +653,7 @@ class InvestorWalletBot:
                 )
                 return
 
-            lines = []
+            lines: list[str] = []
             lines.append("Last transactions (internal ledger)")
             lines.append("Most recent first (max 10):")
             lines.append("")
@@ -667,11 +687,10 @@ class InvestorWalletBot:
                 )
 
             await update.message.reply_text("\n".join(lines))
-
         except Exception as e:
             logger.exception("Error while fetching history: %s", e)
             await update.message.reply_text(
-                "Could not load transaction history. Please contact the SLH team."
+                "Could not load transaction history.\nPlease contact the SLH team."
             )
         finally:
             db.close()
@@ -684,9 +703,7 @@ class InvestorWalletBot:
         )
 
     async def cmd_send_slh(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        קיצור דרך: /send_slh <amount> <@username|user_id>
-        """
+        """קיצור דרך: /send_slh <amount> <@username|user_id>"""
         self._ensure_user(update)
         parts = (update.message.text or "").split()
         if len(parts) != 3:
@@ -702,6 +719,7 @@ class InvestorWalletBot:
             return
 
         target = parts[2]
+
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -730,7 +748,8 @@ class InvestorWalletBot:
 
             if not receiver:
                 await update.message.reply_text(
-                    "Target user not found in the system. They must send /start once."
+                    "Target user not found in the system.\n"
+                    "They must send /start once."
                 )
                 return
 
@@ -751,10 +770,7 @@ class InvestorWalletBot:
             db.close()
 
     async def cmd_admin_credit(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        אדמין בלבד: טעינת SLH למשתמש לפי ID.
-        /admin_credit <telegram_id> <amount_slh>
-        """
+        """אדמין בלבד: טעינת SLH למשתמש לפי ID. /admin_credit <telegram_id> <amount>"""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -762,7 +778,7 @@ class InvestorWalletBot:
         parts = (update.message.text or "").split()
         if len(parts) != 3:
             await update.message.reply_text(
-                "Usage: /admin_credit <telegram_id> <amount_slh>"
+                "Usage: /admin_credit <telegram_id> <amount>"
             )
             return
 
@@ -770,12 +786,14 @@ class InvestorWalletBot:
             target_id = int(parts[1])
             amount = float(parts[2])
         except ValueError:
-            await update.message.reply_text("Invalid parameters. Check ID and amount.")
+            await update.message.reply_text("Invalid parameters.\nCheck ID and amount.")
             return
 
         db = self._db()
         try:
-            user = crud.get_or_create_user(db, telegram_id=target_id, username=None)
+            user = crud.get_or_create_user(
+                db, telegram_id=target_id, username=None
+            )
             tx = crud.change_balance(
                 db,
                 user=user,
@@ -791,10 +809,10 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    async def cmd_admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        תפריט אדמין – זמין רק למזהה המוגדר ב-ADMIN_USER_ID.
-        """
+    async def cmd_admin_menu(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """תפריט אדמין – זמין רק למזהה המוגדר ב-ADMIN_USER_ID."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -804,10 +822,10 @@ class InvestorWalletBot:
             reply_markup=self._admin_menu_keyboard(),
         )
 
-    async def cmd_admin_list_users(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        אדמין: רשימת המשתמשים במערכת + יתרות.
-        """
+    async def cmd_admin_list_users(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """אדמין: רשימת המשתמשים במערכת + יתרות."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -825,7 +843,7 @@ class InvestorWalletBot:
                 await update.message.reply_text("No users found in the system yet.")
                 return
 
-            lines = []
+            lines: list[str] = []
             lines.append("Admin – Users (top 50 by SLH balance):")
             lines.append("")
 
@@ -842,10 +860,10 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    async def cmd_admin_ledger(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        אדמין: תצוגה גלובלית של ה-Ledger (עד 50 הטרנזקציות האחרונות).
-        """
+    async def cmd_admin_ledger(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """אדמין: תצוגה גלובלית של ה-Ledger (עד 50 הטרנזקציות האחרונות)."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -863,7 +881,7 @@ class InvestorWalletBot:
                 await update.message.reply_text("No transactions in the ledger yet.")
                 return
 
-            lines = []
+            lines: list[str] = []
             lines.append("Admin – Global Ledger (last 50 transactions):")
             lines.append("")
 
@@ -891,8 +909,42 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    # ===== Callback handlers =====
+    # === NEW: health commands ===
+    async def cmd_ping(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """בדיקת חיים מהירה בקליינט."""
+        await update.message.reply_text("pong")
 
+    async def cmd_admin_selftest(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """אדמין בלבד: מריץ self-test עמוק ומציג דו\"ח מצב."""
+        if not self._is_admin(update.effective_user.id):
+            await update.message.reply_text("This command is admin-only.")
+            return
+
+        result = run_selftest(quick=False)
+        status = result.get("status", "unknown")
+        checks = result.get("checks", {})
+
+        lines: list[str] = []
+        lines.append(f"Self-test status: {status}")
+        lines.append("")
+
+        for name, check in checks.items():
+            ok = check.get("ok", False)
+            skipped = check.get("skipped", False)
+            if ok and not skipped:
+                lines.append(f"✅ {name}")
+            elif skipped:
+                reason = check.get("reason", "")
+                lines.append(f"⚪ {name} – skipped ({reason})")
+            else:
+                err = check.get("error", "unknown error")
+                lines.append(f"❌ {name} – {err}")
+
+        await update.message.reply_text("\n".join(lines))
+
+    # ===== Callback handlers =====
     async def cb_wallet_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -901,11 +953,9 @@ class InvestorWalletBot:
         if data == "WALLET_BALANCE":
             fake_update = Update(update.update_id, message=query.message)
             await self.cmd_balance(fake_update, context)
-
         elif data == "WALLET_DETAILS":
             fake_update = Update(update.update_id, message=query.message)
             await self.cmd_wallet(fake_update, context)
-
         elif data == "WALLET_BUY_BNB":
             if settings.BUY_BNB_URL:
                 await query.edit_message_text(
@@ -917,9 +967,7 @@ class InvestorWalletBot:
                 )
 
     async def cb_main_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        כפתורי MENU_* עבור המשקיע.
-        """
+        """כפתורי MENU_* עבור המשקיע."""
         query = update.callback_query
         await query.answer()
         data = query.data
@@ -928,29 +976,21 @@ class InvestorWalletBot:
 
         if data == "MENU_SUMMARY":
             await self.cmd_summary(fake_update, context)
-
         elif data == "MENU_BALANCE":
             await self.cmd_balance(fake_update, context)
-
         elif data == "MENU_WALLET":
             await self.cmd_wallet(fake_update, context)
-
         elif data == "MENU_LINK_WALLET":
             await self.cmd_link_wallet(fake_update, context)
-
         elif data == "MENU_HISTORY":
             await self.cmd_history(fake_update, context)
-
         elif data == "MENU_TRANSFER":
             await self.cmd_transfer(fake_update, context)
-
         elif data == "MENU_DOCS":
             await self.cmd_docs(fake_update, context)
 
     async def cb_admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        כפתורי ADMIN_* עבור אדמין.
-        """
+        """כפתורי ADMIN_* עבור אדמין."""
         query = update.callback_query
         await query.answer()
         data = query.data
@@ -963,13 +1003,13 @@ class InvestorWalletBot:
             text = (
                 "Admin credit tool:\n\n"
                 "Use:\n"
-                "/admin_credit <telegram_id> <amount_slh>\n\n"
+                "/admin_credit <telegram_id> <amount>\n\n"
                 "Example:\n"
                 "/admin_credit 224223270 199999.877\n\n"
-                "This will create an internal ledger transaction and update the user's off-chain SLH balance."
+                "This will create an internal ledger transaction and update "
+                "the user's off-chain SLH balance."
             )
             await query.edit_message_text(text)
-
         elif data == "ADMIN_HELP_HISTORY":
             text = (
                 "Ledger overview:\n\n"
@@ -993,13 +1033,11 @@ class InvestorWalletBot:
 
             if state == STATE_AWAITING_BNB_ADDRESS:
                 context.user_data["state"] = None
-
                 if not text.startswith("0x") or len(text) < 20:
                     await update.message.reply_text(
-                        "Address seems invalid. Try again with /link_wallet."
+                        "Address seems invalid.\nTry again with /link_wallet."
                     )
                     return
-
                 crud.set_bnb_address(db, user, text)
                 await update.message.reply_text(
                     f"Your BNB address was saved:\n{text}"
@@ -1012,25 +1050,22 @@ class InvestorWalletBot:
                         "Send a username starting with @username"
                     )
                     return
-
                 context.user_data["transfer_target_username"] = text[1:]
                 context.user_data["state"] = STATE_AWAITING_TRANSFER_AMOUNT
                 await update.message.reply_text(
-                    f"Great. Now type the SLH amount you want to transfer to {text}."
+                    f"Great.\nNow type the SLH amount you want to transfer to {text}."
                 )
                 return
 
             if state == STATE_AWAITING_TRANSFER_AMOUNT:
                 context.user_data["state"] = None
-
                 try:
                     amount = float(text.replace(",", ""))
                 except ValueError:
                     await update.message.reply_text(
-                        "Could not read amount. Try again with /transfer."
+                        "Could not read amount.\nTry again with /transfer."
                     )
                     return
-
                 if amount <= 0:
                     await update.message.reply_text(
                         "Amount must be greater than zero."
@@ -1051,7 +1086,7 @@ class InvestorWalletBot:
                 )
                 if not receiver:
                     await update.message.reply_text(
-                        "No user with that username in the system. "
+                        "No user with that username in the system.\n"
                         "They must send /start once before receiving transfers."
                     )
                     return
@@ -1074,9 +1109,8 @@ class InvestorWalletBot:
                 return
 
             await update.message.reply_text(
-                "Command not recognized. Use /help to see available commands."
+                "Command not recognized.\nUse /help to see available commands."
             )
-
         finally:
             db.close()
 
