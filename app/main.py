@@ -5,7 +5,6 @@ from app.database import init_db
 from app.bot.investor_wallet_bot import initialize_bot, process_webhook
 from app.monitoring import run_selftest
 
-# יצירת אפליקציית FastAPI
 app = FastAPI(title="SLH Investor Gateway")
 
 
@@ -16,29 +15,31 @@ async def startup_event():
     1. מוודא שהטבלאות (users, transactions) קיימות.
     2. מאתחל את בוט הטלגרם וקובע webhook.
     """
-    # יצירת טבלאות חסרות (לא מוחק / לא משכתב קיימות)
     init_db()
-    # אתחול בוט הטלגרם (Application + webhook לפי WEBHOOK_URL)
     await initialize_bot()
 
 
 @app.get("/")
 async def root():
-    """סתם דף בית קטן – בדיקת חיים בסיסית."""
     return {"message": "SLH Investor Gateway is running"}
 
 
 @app.get("/health")
 async def health():
-    """מסלול healthcheck בסיסי לריילווי / ניטור חיצוני."""
+    """
+    מסלול healthcheck בסיסי לריילווי.
+    """
     return {"status": "ok"}
 
 
 @app.get("/ready")
 async def ready():
     """
-    בדיקת מוכנות מהירה (לא מדברת ישירות עם Telegram אלא רק בודקת טוקן).
-    שימושי ל-healthcheck מהיר יותר.
+    בדיקת מוכנות מהירה:
+    - DB
+    - ENV
+    - טוקן טלגרם קיים
+    (בלי getMe, כדי שיהיה מהיר וקל לניטור).
     """
     result = run_selftest(quick=True)
     return {"status": result["status"], "checks": result["checks"]}
@@ -47,11 +48,8 @@ async def ready():
 @app.get("/selftest")
 async def selftest():
     """
-    בדיקה עמוקה של כל הרכיבים:
-    - DB
-    - ENV
-    - Telegram Bot
-    - BSC RPC
+    בדיקה עמוקה: DB, ENV, Telegram, BSC.
+    אפשר לפתוח בדפדפן לקבל דו"ח.
     """
     return run_selftest(quick=False)
 
