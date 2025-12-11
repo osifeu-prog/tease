@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.database import SessionLocal
 from app import models, crud, blockchain
 from app.monitoring import run_selftest
+from app import i18n  # <-- NEW
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,29 @@ class InvestorWalletBot:
 
     def _db(self):
         return SessionLocal()
+
+    # ===== Language helper (in-memory preferred language) =====
+
+    def _get_lang(
+        self,
+        tg_user,
+        context: ContextTypes.DEFAULT_TYPE | None = None,
+    ) -> str:
+        """
+        קובע את השפה עבור משתמש:
+        1. אם יש override ב-context.user_data["lang"] – משתמשים בו.
+        2. אחרת לפי language_code מטלגרם.
+        3. אחרת DEFAULT_LANGUAGE.
+        """
+        override = None
+        if context is not None:
+            override = context.user_data.get("lang")
+
+        if override:
+            return i18n.normalize_lang(override)
+
+        raw = getattr(tg_user, "language_code", None) or settings.DEFAULT_LANGUAGE
+        return i18n.normalize_lang(raw)
 
     # ===== User helper (with is_new flag) =====
 
@@ -169,6 +193,11 @@ class InvestorWalletBot:
         )
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
 
+        # NEW: language selector
+        self.application.add_handler(
+            CommandHandler("language", self.cmd_language)
+        )
+
         # NEW: quick health check command (לכולם)
         self.application.add_handler(CommandHandler("ping", self.cmd_ping))
 
@@ -197,6 +226,11 @@ class InvestorWalletBot:
         )
         self.application.add_handler(
             CallbackQueryHandler(self.cb_main_menu, pattern=r"^MENU_")
+        )
+
+        # Callback לשפה
+        self.application.add_handler(
+            CallbackQueryHandler(self.cb_language, pattern=r"^LANG_")
         )
 
         # Callback לאדמין
@@ -310,6 +344,30 @@ class InvestorWalletBot:
             ]
         )
 
+    def _language_keyboard(self) -> InlineKeyboardMarkup:
+        """
+        כפתורי בחירת שפה.
+        אנחנו בונים אותם מתוך i18n כדי שהטקסט יהיה נכון לכל שפה.
+        """
+        # נשתמש תמיד באנגלית להגדרת שמות הכפתורים (אחיד לכולם)
+        btn_en = i18n.t("en", "LANGUAGE_BUTTON_EN")
+        btn_he = i18n.t("en", "LANGUAGE_BUTTON_HE")
+        btn_ru = i18n.t("en", "LANGUAGE_BUTTON_RU")
+        btn_es = i18n.t("en", "LANGUAGE_BUTTON_ES")
+
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(btn_en, callback_data="LANG_en"),
+                    InlineKeyboardButton(btn_he, callback_data="LANG_he"),
+                ],
+                [
+                    InlineKeyboardButton(btn_ru, callback_data="LANG_ru"),
+                    InlineKeyboardButton(btn_es, callback_data="LANG_es"),
+                ],
+            ]
+        )
+
     # ===== Commands =====
 
     async def cmd_start(
@@ -372,6 +430,8 @@ class InvestorWalletBot:
         text_lines.append("6) Use /history to review your latest transactions.")
         text_lines.append("")
         text_lines.append("You can also open /menu for a button-based experience.")
+        text_lines.append("")
+        text_lines.append("You can change the interface language via /language.")
 
         await update.message.reply_text("\n".join(text_lines))
 
@@ -389,12 +449,13 @@ class InvestorWalletBot:
             "/history – Last transactions in the internal ledger\n"
             "/transfer – Internal off-chain transfer to another user\n"
             "/whoami – See your Telegram ID, username and wallet status\n"
-            "/docs – Open the official SLH investor docs\n\n"
+            "/docs – Open the official SLH investor docs\n"
+            "/language – Choose your preferred interface language\n\n"
             "Admin only:\n"
             "/admin_menu – Admin tools overview\n"
             "/admin_credit – Credit SLH to a user\n"
             "/admin_list_users – List users with balances\n"
-            "/admin_ledger – Global ledger view (last txs)\n"
+            "/admin_ledger – Global ledger view (last 50 txs)\n"
             "/admin_selftest – Run deep self-test (DB/ENV/BSC/Telegram)\n\n"
             "At this stage there is no redemption of principal – "
             "only usage of SLH units inside the ecosystem.\n"
@@ -724,7 +785,7 @@ class InvestorWalletBot:
 
             lines.append("")
             lines.append(
-                "Key commands: /menu, /wallet, /balance, /history, /transfer, /docs, /help"
+                "Key commands: /menu, /wallet, /balance, /history, /transfer, /docs, /help, /language"
             )
 
             await update.message.reply_text("\n".join(lines))
@@ -1144,7 +1205,7 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    # === NEW: health commands ===
+    # === NEW: health + language commands ===
 
     async def cmd_ping(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1182,6 +1243,23 @@ class InvestorWalletBot:
                 lines.append(f"❌ {name} – {err}")
 
         await update.message.reply_text("\n".join(lines))
+
+    async def cmd_language(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """
+        מציג למשתמש תפריט בחירת שפה.
+        בשלב הזה אנחנו שומרים את ההעדפה בזיכרון (context.user_data),
+        ואח"כ נוכל להעביר את כל ההודעות להשתמש ב-i18n.
+        """
+        tg_user = update.effective_user
+        lang = self._get_lang(tg_user, context)
+        title = i18n.t(lang, "LANGUAGE_MENU_TITLE")
+
+        await update.message.reply_text(
+            title,
+            reply_markup=self._language_keyboard(),
+        )
 
     # ===== Callback handlers =====
 
@@ -1232,6 +1310,37 @@ class InvestorWalletBot:
             await self.cmd_transfer(fake_update, context)
         elif data == "MENU_DOCS":
             await self.cmd_docs(fake_update, context)
+
+    async def cb_language(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """
+        Callback של בחירת שפה – LANG_en / LANG_he / LANG_ru / LANG_es.
+        מעדכן context.user_data["lang"] ומציג הודעת אישור.
+        """
+        query = update.callback_query
+        await query.answer()
+        data = query.data  # למשל "LANG_he"
+
+        parts = data.split("_", 1)
+        if len(parts) != 2:
+            return
+
+        raw_lang = parts[1]
+        lang = i18n.normalize_lang(raw_lang)
+        context.user_data["lang"] = lang
+
+        # הודעת אישור בשפה הנבחרת
+        if lang == "he":
+            confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_HE")
+        elif lang == "ru":
+            confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_RU")
+        elif lang == "es":
+            confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_ES")
+        else:
+            confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM")
+
+        await query.edit_message_text(confirm)
 
     async def cb_admin_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
