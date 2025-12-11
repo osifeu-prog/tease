@@ -1,5 +1,8 @@
 import logging
+import json
 from typing import Any, Dict, List
+from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
 
 from telegram import Bot
 from sqlalchemy import text
@@ -57,6 +60,12 @@ def _check_env(checks: Dict[str, Any]) -> str:
 
 
 def _check_telegram(checks: Dict[str, Any], quick: bool) -> str:
+    """
+    בדיקת טלגרם:
+
+    quick=True  -> רק לוודא שיש BOT_TOKEN.
+    quick=False -> קריאת getMe ישירות ל-HTTP API של טלגרם (סינכרוני).
+    """
     status = "ok"
 
     if not settings.BOT_TOKEN:
@@ -71,13 +80,27 @@ def _check_telegram(checks: Dict[str, Any], quick: bool) -> str:
         return "ok"
 
     try:
-        bot = Bot(token=settings.BOT_TOKEN)
-        me = bot.get_me()
-        checks["telegram"] = {
-            "ok": True,
-            "username": me.username,
-            "id": me.id,
-        }
+        url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getMe"
+        with urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if not data.get("ok"):
+            checks["telegram"] = {
+                "ok": False,
+                "error": str(data),
+            }
+            status = "error"
+        else:
+            result = data.get("result", {})
+            checks["telegram"] = {
+                "ok": True,
+                "username": result.get("username"),
+                "id": result.get("id"),
+            }
+    except (HTTPError, URLError) as e:
+        logger.exception("Telegram selftest failed (HTTP): %s", e)
+        checks["telegram"] = {"ok": False, "error": str(e)}
+        status = "error"
     except Exception as e:
         logger.exception("Telegram selftest failed: %s", e)
         checks["telegram"] = {"ok": False, "error": str(e)}
