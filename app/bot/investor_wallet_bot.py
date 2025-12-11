@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.database import SessionLocal
 from app import models, crud, blockchain
 from app.monitoring import run_selftest
-from app import i18n  # <-- NEW
+from app import i18n  # i18n layer
 
 logger = logging.getLogger(__name__)
 
@@ -193,12 +193,12 @@ class InvestorWalletBot:
         )
         self.application.add_handler(CommandHandler("docs", self.cmd_docs))
 
-        # NEW: language selector
+        # Language selector
         self.application.add_handler(
             CommandHandler("language", self.cmd_language)
         )
 
-        # NEW: quick health check command (לכולם)
+        # Quick health check
         self.application.add_handler(CommandHandler("ping", self.cmd_ping))
 
         # Admin-only commands
@@ -215,7 +215,7 @@ class InvestorWalletBot:
             CommandHandler("admin_ledger", self.cmd_admin_ledger)
         )
 
-        # NEW: admin self-test command
+        # Admin self-test command
         self.application.add_handler(
             CommandHandler("admin_selftest", self.cmd_admin_selftest)
         )
@@ -354,6 +354,7 @@ class InvestorWalletBot:
         btn_he = i18n.t("en", "LANGUAGE_BUTTON_HE")
         btn_ru = i18n.t("en", "LANGUAGE_BUTTON_RU")
         btn_es = i18n.t("en", "LANGUAGE_BUTTON_ES")
+        btn_ar = i18n.t("en", "LANGUAGE_BUTTON_AR")
 
         return InlineKeyboardMarkup(
             [
@@ -365,6 +366,9 @@ class InvestorWalletBot:
                     InlineKeyboardButton(btn_ru, callback_data="LANG_ru"),
                     InlineKeyboardButton(btn_es, callback_data="LANG_es"),
                 ],
+                [
+                    InlineKeyboardButton(btn_ar, callback_data="LANG_ar"),
+                ],
             ]
         )
 
@@ -373,94 +377,86 @@ class InvestorWalletBot:
     async def cmd_start(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו."""
+        """חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו, עם i18n."""
         tg_user = update.effective_user
 
-        # כאן משתמשים ב-is_new כדי לזהות משתמש חדש בלבד
+        # user + is_new
         user, is_new = self._get_or_create_user_with_flag(tg_user)
 
         # לוג לקבוצת לוגים רק אם המשתמש חדש
         if is_new:
             await self._log_new_investor(tg_user, user)
 
+        lang = self._get_lang(tg_user, context)
         min_invest = 100_000
         balance = user.balance_slh or Decimal("0")
         has_wallet = bool(user.bnb_address)
 
-        text_lines: list[str] = []
-        text_lines.append("Welcome to the SLH Investor Gateway.")
-        text_lines.append("")
-        text_lines.append(
-            f"This bot is intended for strategic investors (minimum {min_invest:,.0f} ILS)."
-        )
-        text_lines.append("")
-        text_lines.append("With this bot you can:")
-        text_lines.append("- Link your personal BNB wallet (BSC)")
-        text_lines.append("- View your off-chain SLH balance")
-        text_lines.append("- Transfer SLH units to other investors (off-chain)")
-        text_lines.append(
-            "- Access external links for BNB purchase and staking info"
-        )
-        text_lines.append("")
-        text_lines.append("Next steps:")
+        lines: list[str] = []
 
+        # כותרת
+        lines.append(i18n.t(lang, "START_TITLE"))
+        lines.append("")
+
+        # שורת מינימום השקעה
+        lines.append(
+            i18n.t(lang, "START_MIN_INVEST_LINE").format(
+                min_invest=f"{min_invest:,.0f}"
+            )
+        )
+        lines.append("")
+
+        # רשימת יכולות
+        lines.append(i18n.t(lang, "START_FEATURES_INTRO"))
+        lines.append(i18n.t(lang, "START_FEATURE_1"))
+        lines.append(i18n.t(lang, "START_FEATURE_2"))
+        lines.append(i18n.t(lang, "START_FEATURE_3"))
+        lines.append(i18n.t(lang, "START_FEATURE_4"))
+        lines.append("")
+
+        # הצעדים הבאים
+        lines.append(i18n.t(lang, "START_NEXT_STEPS_TITLE"))
+
+        # צעד 1 – לפי מצב ארנק
         if not has_wallet:
-            text_lines.append(
-                "1) Use /link_wallet to connect your BNB (BSC) address."
-            )
+            lines.append(i18n.t(lang, "START_STEP_1_NO_WALLET"))
         else:
-            text_lines.append(f"1) BNB wallet linked: {user.bnb_address}")
+            lines.append(
+                i18n.t(lang, "START_STEP_1_HAS_WALLET").format(
+                    address=user.bnb_address
+                )
+            )
 
+        # צעד 2 – לפי יתרה
         if balance == Decimal("0"):
-            text_lines.append(
-                "2) Once your existing investment is recorded, you will see your SLH balance via /balance."
-            )
+            lines.append(i18n.t(lang, "START_STEP_2_NO_BALANCE"))
         else:
-            text_lines.append(
-                f"2) Current SLH balance: {balance:.4f} (see /balance)."
+            lines.append(
+                i18n.t(lang, "START_STEP_2_HAS_BALANCE").format(
+                    balance=f"{balance:.4f}"
+                )
             )
 
-        text_lines.append(
-            "3) Use /wallet to view full wallet details and ecosystem links."
-        )
-        text_lines.append(
-            "4) Use /whoami to see your ID, username and wallet status."
-        )
-        text_lines.append("5) Use /summary for a full investor dashboard.")
-        text_lines.append("6) Use /history to review your latest transactions.")
-        text_lines.append("")
-        text_lines.append("You can also open /menu for a button-based experience.")
-        text_lines.append("")
-        text_lines.append("You can change the interface language via /language.")
+        # צעדים 3–6
+        lines.append(i18n.t(lang, "START_STEP_3"))
+        lines.append(i18n.t(lang, "START_STEP_4"))
+        lines.append(i18n.t(lang, "START_STEP_5"))
+        lines.append(i18n.t(lang, "START_STEP_6"))
+        lines.append("")
 
-        await update.message.reply_text("\n".join(text_lines))
+        # טיפים
+        lines.append(i18n.t(lang, "START_MENU_HINT"))
+        lines.append(i18n.t(lang, "START_LANGUAGE_HINT"))
+
+        await update.message.reply_text("\n".join(lines))
 
     async def cmd_help(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        text = (
-            "SLH Wallet Bot – Help\n\n"
-            "/start – Intro and onboarding\n"
-            "/menu – Main menu with buttons\n"
-            "/summary – Full investor dashboard (wallet + balance + profile)\n"
-            "/wallet – Wallet details and ecosystem links\n"
-            "/link_wallet – Link your personal BNB (BSC) address\n"
-            "/balance – View your SLH off-chain balance (+ On-Chain if available)\n"
-            "/history – Last transactions in the internal ledger\n"
-            "/transfer – Internal off-chain transfer to another user\n"
-            "/whoami – See your Telegram ID, username and wallet status\n"
-            "/docs – Open the official SLH investor docs\n"
-            "/language – Choose your preferred interface language\n\n"
-            "Admin only:\n"
-            "/admin_menu – Admin tools overview\n"
-            "/admin_credit – Credit SLH to a user\n"
-            "/admin_list_users – List users with balances\n"
-            "/admin_ledger – Global ledger view (last 50 txs)\n"
-            "/admin_selftest – Run deep self-test (DB/ENV/BSC/Telegram)\n\n"
-            "At this stage there is no redemption of principal – "
-            "only usage of SLH units inside the ecosystem.\n"
-            "BNB and gas remain in your own wallet via external providers."
-        )
+        """מסך עזרה רב־לשוני לפי ההגדרות של i18n."""
+        tg_user = update.effective_user
+        lang = self._get_lang(tg_user, context)
+        text = i18n.t(lang, "HELP_TEXT")
         await update.message.reply_text(text)
 
     async def cmd_menu(
@@ -1205,7 +1201,7 @@ class InvestorWalletBot:
         finally:
             db.close()
 
-    # === NEW: health + language commands ===
+    # === Health + language commands ===
 
     async def cmd_ping(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1315,7 +1311,7 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        Callback של בחירת שפה – LANG_en / LANG_he / LANG_ru / LANG_es.
+        Callback של בחירת שפה – LANG_en / LANG_he / LANG_ru / LANG_es / LANG_ar.
         מעדכן context.user_data["lang"] ומציג הודעת אישור.
         """
         query = update.callback_query
@@ -1337,6 +1333,8 @@ class InvestorWalletBot:
             confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_RU")
         elif lang == "es":
             confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_ES")
+        elif lang == "ar":
+            confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_AR")
         else:
             confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM")
 
