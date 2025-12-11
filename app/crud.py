@@ -1,106 +1,88 @@
-from decimal import Decimal
-from sqlalchemy.orm import Session
+from sqlalchemy import (
+    Column,
+    BigInteger,
+    String,
+    Numeric,
+    DateTime,
+    Integer,
+)
+from sqlalchemy.sql import func
 
-from app import models
+from app.database import Base
 
 
-def get_or_create_user(db: Session, telegram_id: int, username: str | None):
+class User(Base):
     """
-    מאתר משתמש לפי telegram_id; אם לא קיים – יוצר עם balance_slh=0.
+    טבלת משתמשים – מותאם לסכימה הקיימת בפוסטגרס.
+
+    חשוב:
+    - אין עמודה id.
+    - telegram_id הוא ה-Primary Key.
     """
-    user = (
-        db.query(models.User)
-        .filter(models.User.telegram_id == telegram_id)
-        .first()
-    )
-    if not user:
-        user = models.User(
-            telegram_id=telegram_id,
-            username=username,
-            balance_slh=Decimal("0"),
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
+
+    __tablename__ = "users"
+
+    telegram_id = Column(BigInteger, primary_key=True, index=True)
+    username = Column(String(255), index=True, nullable=True)
+    bnb_address = Column(String(255), nullable=True)
+
+    # יתרת SLH "העיקרית" (כמו שהיה עד עכשיו)
+    balance_slh = Column(Numeric(24, 6), nullable=False, default=0)
+
+    # --- רפררלים / Sela פנימי ---
+
+    # מי הפנה אותי (telegram_id של המפנה, אם יש)
+    referred_by = Column(BigInteger, nullable=True, index=True)
+
+    # יתרת Sela פנימי (תגמולי שיתוף / הפקדות)
+    referral_rewards_sela = Column(Numeric(24, 8), nullable=False, default=0)
 
 
-def set_bnb_address(db: Session, user: models.User, address: str):
+class Transaction(Base):
     """
-    מעדכן את כתובת ה-BNB של המשתמש.
+    טבלת טרנזקציות פנימיות (Off-Chain Ledger).
     """
-    user.bnb_address = address
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
 
+    __tablename__ = "transactions"
 
-def change_balance(
-    db: Session,
-    user: models.User,
-    delta_slh: float | Decimal,
-    tx_type: str,
-    from_user: int | None,
-    to_user: int | None,
-) -> models.Transaction:
-    """
-    שינוי יתרה פנימית + יצירת טרנזקציה בלג'ר.
-    """
-    amount = Decimal(str(delta_slh))
-
-    current = user.balance_slh or Decimal("0")
-    user.balance_slh = current + amount
-
-    tx = models.Transaction(
-        from_user=from_user,
-        to_user=to_user,
-        amount_slh=amount,
-        tx_type=tx_type,
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
 
-    db.add(user)
-    db.add(tx)
-    db.commit()
-    db.refresh(user)
-    db.refresh(tx)
-    return tx
+    # מזהי טלגרם (לא FK פורמלי, פשוט שמירה של ה-ID)
+    from_user = Column(BigInteger, nullable=True)
+    to_user = Column(BigInteger, nullable=True)
+
+    amount_slh = Column(Numeric(24, 6), nullable=False)
+    tx_type = Column(String(50), nullable=False)
 
 
-def internal_transfer(
-    db: Session,
-    sender: models.User,
-    receiver: models.User,
-    amount_slh: float | Decimal,
-) -> models.Transaction:
+class Referral(Base):
     """
-    העברת SLH פנימית בין שני משתמשים (off-chain).
+    לוג רפררלים – כל אירוע תגמול (שיתוף / בונוס הפקדה).
     """
-    amount = Decimal(str(amount_slh))
 
-    sender_balance = sender.balance_slh or Decimal("0")
-    if sender_balance < amount:
-        raise ValueError("Insufficient balance for this transfer.")
+    __tablename__ = "referrals"
 
-    # מורידים מהשולח
-    sender.balance_slh = sender_balance - amount
-
-    # מוסיפים למקבל
-    receiver_balance = receiver.balance_slh or Decimal("0")
-    receiver.balance_slh = receiver_balance + amount
-
-    tx = models.Transaction(
-        from_user=sender.telegram_id,
-        to_user=receiver.telegram_id,
-        amount_slh=amount,
-        tx_type="internal_transfer",
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
 
-    db.add(sender)
-    db.add(receiver)
-    db.add(tx)
-    db.commit()
-    db.refresh(sender)
-    db.refresh(receiver)
-    db.refresh(tx)
-    return tx
+    # מי הפנה (תמיד קיים)
+    inviter_telegram_id = Column(BigInteger, nullable=False, index=True)
+
+    # מי הוזמן (אם כבר קיים במערכת)
+    invitee_telegram_id = Column(BigInteger, nullable=True, index=True)
+
+    # כמה Sela פנימי קיבל המפנה
+    reward_sela = Column(Numeric(24, 8), nullable=False, default=0)
+
+    # סוג האירוע – "share" / "deposit"
+    kind = Column(String(50), nullable=False, default="share")
+
+    # הערות חופשיות (ID של עסקה, תיאור הפקדה וכו')
+    notes = Column(String(255), nullable=True)
