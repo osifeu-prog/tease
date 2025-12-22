@@ -1,5 +1,24 @@
 # app/bot/investor_wallet_bot.py
 import logging
+
+# --- SLH SAFETY: ignore non-private updates at webhook (groups/channels) ---
+def _slh_is_private_update(payload: dict) -> bool:
+    try:
+        msg = payload.get("message") or payload.get("edited_message") or payload.get("channel_post") or payload.get("edited_channel_post")
+        if isinstance(msg, dict):
+            chat = msg.get("chat") or {}
+            return chat.get("type") == "private"
+
+        cb = payload.get("callback_query")
+        if isinstance(cb, dict):
+            m2 = cb.get("message") or {}
+            chat = m2.get("chat") or {}
+            return chat.get("type") == "private"
+
+        # If we cannot detect chat type, do not block.
+        return True
+    except Exception:
+        return True
 from decimal import Decimal
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
@@ -44,10 +63,10 @@ class InvestorWalletBot:
         context: ContextTypes.DEFAULT_TYPE | None = None,
     ) -> str:
         """
-        קובע את השפה עבור משתמש:
-        1. אם יש override ב-context.user_data["lang"] – משתמשים בו.
-        2. אחרת לפי language_code מטלגרם.
-        3. אחרת DEFAULT_LANGUAGE.
+        ×§×•×‘×¢ ×گ×ھ ×”×©×¤×” ×¢×‘×•×¨ ×‍×©×ھ×‍×©:
+        1. ×گ×‌ ×™×© override ×‘-context.user_data["lang"] â€“ ×‍×©×ھ×‍×©×™×‌ ×‘×•.
+        2. ×گ×—×¨×ھ ×œ×¤×™ language_code ×‍×ک×œ×’×¨×‌.
+        3. ×گ×—×¨×ھ DEFAULT_LANGUAGE.
         """
         override = None
         if context is not None:
@@ -65,9 +84,9 @@ class InvestorWalletBot:
         self, tg_user
     ) -> tuple[models.User, bool]:
         """
-        מחזיר (user, is_new):
-        - אם המשתמש לא קיים בטבלה -> יוצר אותו, is_new = True
-        - אם קיים -> מעדכן username אם צריך, is_new = False
+        ×‍×—×–×™×¨ (user, is_new):
+        - ×گ×‌ ×”×‍×©×ھ×‍×© ×œ×گ ×§×™×™×‌ ×‘×ک×‘×œ×” -> ×™×•×¦×¨ ×گ×•×ھ×•, is_new = True
+        - ×گ×‌ ×§×™×™×‌ -> ×‍×¢×“×›×ں username ×گ×‌ ×¦×¨×™×ڑ, is_new = False
         """
         db = self._db()
         try:
@@ -89,7 +108,7 @@ class InvestorWalletBot:
                 db.refresh(user)
                 is_new = True
             else:
-                # עדכון username אם השתנה בטלגרם
+                # ×¢×“×›×•×ں username ×گ×‌ ×”×©×ھ× ×” ×‘×ک×œ×’×¨×‌
                 if tg_user.username and user.username != tg_user.username:
                     user.username = tg_user.username
                     db.add(user)
@@ -102,7 +121,7 @@ class InvestorWalletBot:
 
     def _ensure_user(self, update: Update) -> models.User:
         """
-        לשימוש בשאר הפקודות – מחזיר תמיד user, בלי להתעסק ב-is_new.
+        ×œ×©×™×‍×•×© ×‘×©×گ×¨ ×”×¤×§×•×“×•×ھ â€“ ×‍×—×–×™×¨ ×ھ×‍×™×“ user, ×‘×œ×™ ×œ×”×ھ×¢×،×§ ×‘-is_new.
         """
         tg_user = update.effective_user
         user, _ = self._get_or_create_user_with_flag(tg_user)
@@ -112,8 +131,8 @@ class InvestorWalletBot:
         self, tg_user, user: models.User
     ) -> None:
         """
-        לוג על משתמש חדש לקבוצה/ערוץ שמוגדר ב-LOG_NEW_USERS_CHAT_ID.
-        רץ רק כאשר המשתמש נוצר עכשיו (is_new=True).
+        ×œ×•×’ ×¢×œ ×‍×©×ھ×‍×© ×—×“×© ×œ×§×‘×•×¦×”/×¢×¨×•×¥ ×©×‍×•×’×“×¨ ×‘-LOG_NEW_USERS_CHAT_ID.
+        ×¨×¥ ×¨×§ ×›×گ×©×¨ ×”×‍×©×ھ×‍×© × ×•×¦×¨ ×¢×›×©×™×• (is_new=True).
         """
         chat_id = settings.LOG_NEW_USERS_CHAT_ID
         if not chat_id:
@@ -121,20 +140,20 @@ class InvestorWalletBot:
 
         if not self.application or not self.application.bot:
             logger.warning(
-                "Cannot log new investor – application.bot is not ready"
+                "Cannot log new investor â€“ application.bot is not ready"
             )
             return
 
         target_chat = chat_id
-        # ננסה להמיר ל-int אם זה מספר (כולל ערוצי -100...)
+        # × × ×،×” ×œ×”×‍×™×¨ ×œ-int ×گ×‌ ×–×” ×‍×،×¤×¨ (×›×•×œ×œ ×¢×¨×•×¦×™ -100...)
         try:
             target_chat = int(chat_id)
         except ValueError:
-            # אם זה לא מספר, נשאיר מחרוזת
+            # ×گ×‌ ×–×” ×œ×گ ×‍×،×¤×¨, × ×©×گ×™×¨ ×‍×—×¨×•×–×ھ
             pass
 
         lines: list[str] = []
-        lines.append("🆕 New investor in SLH Global Investments")
+        lines.append("ًں†• New investor in SLH Global Investments")
         lines.append(f"Telegram ID: {tg_user.id}")
         if tg_user.username:
             lines.append(f"Username: @{tg_user.username}")
@@ -219,7 +238,7 @@ class InvestorWalletBot:
             CommandHandler("language", self.cmd_language)
         )
 
-        # NEW: quick health check command (לכולם)
+        # NEW: quick health check command (×œ×›×•×œ×‌)
         self.application.add_handler(CommandHandler("ping", self.cmd_ping))
 
         # Admin-only commands
@@ -241,7 +260,7 @@ class InvestorWalletBot:
             CommandHandler("admin_selftest", self.cmd_admin_selftest)
         )
 
-        # Callback for inline buttons – משקיעים
+        # Callback for inline buttons â€“ ×‍×©×§×™×¢×™×‌
         self.application.add_handler(
             CallbackQueryHandler(self.cb_wallet_menu, pattern=r"^WALLET_")
         )
@@ -249,12 +268,12 @@ class InvestorWalletBot:
             CallbackQueryHandler(self.cb_main_menu, pattern=r"^MENU_")
         )
 
-        # Callback לשפה
+        # Callback ×œ×©×¤×”
         self.application.add_handler(
             CallbackQueryHandler(self.cb_language, pattern=r"^LANG_")
         )
 
-        # Callback לאדמין
+        # Callback ×œ×گ×“×‍×™×ں
         self.application.add_handler(
             CallbackQueryHandler(self.cb_admin_menu, pattern=r"^ADMIN_")
         )
@@ -267,7 +286,7 @@ class InvestorWalletBot:
             )
         )
 
-        # חובה ב-ptb v21 לפני process_update
+        # ×—×•×‘×” ×‘-ptb v21 ×œ×¤× ×™ process_update
         await self.application.initialize()
 
         # Webhook mode
@@ -287,14 +306,14 @@ class InvestorWalletBot:
     # ===== Helpers =====
 
     def _slh_price_nis(self) -> Decimal:
-        """מחיר SLH בניס (ברירת מחדל: 444) כ-Decimal."""
+        """×‍×—×™×¨ SLH ×‘× ×™×، (×‘×¨×™×¨×ھ ×‍×—×“×œ: 444) ×›-Decimal."""
         try:
             return Decimal(str(settings.SLH_PRICE_NIS))
         except Exception:
             return Decimal("444")
 
     def _investor_tier(self, balance: Decimal) -> str:
-        """הגדרת tier משקיע לפי יתרת SLH."""
+        """×”×’×“×¨×ھ tier ×‍×©×§×™×¢ ×œ×¤×™ ×™×ھ×¨×ھ SLH."""
         if balance >= Decimal("500000"):
             return " Ultra Strategic"
         if balance >= Decimal("100000"):
@@ -303,7 +322,7 @@ class InvestorWalletBot:
             return " Core"
         if balance > 0:
             return " Early"
-        return "—"
+        return "â€”"
 
     def _is_admin(self, user_id: int) -> bool:
         admin_id = settings.ADMIN_USER_ID
@@ -311,8 +330,8 @@ class InvestorWalletBot:
 
     def _referral_reward_amount(self) -> Decimal:
         """
-        גובה הבונוס לכל הצטרפות דרך קישור הפניה (SLHA).
-        נשלט ע"י SLHA_REWARD_REFERRAL, ברירת מחדל 0.00001.
+        ×’×•×‘×” ×”×‘×•× ×•×، ×œ×›×œ ×”×¦×ک×¨×¤×•×ھ ×“×¨×ڑ ×§×™×©×•×¨ ×”×¤× ×™×” (SLHA).
+        × ×©×œ×ک ×¢"×™ SLHA_REWARD_REFERRAL, ×‘×¨×™×¨×ھ ×‍×—×“×œ 0.00001.
         """
         try:
             val = Decimal(str(settings.SLHA_REWARD_REFERRAL))
@@ -328,15 +347,15 @@ class InvestorWalletBot:
         referrer_tid: int,
     ) -> Decimal:
         """
-        מעניק בונוס SLHA למפנה (וגם למופנה), ורושם טרנזקציה מסוג referral_bonus_slha.
-        מחזיר את סכום הבונוס שנזקף למפנה.
+        ×‍×¢× ×™×§ ×‘×•× ×•×، SLHA ×œ×‍×¤× ×” (×•×’×‌ ×œ×‍×•×¤× ×”), ×•×¨×•×©×‌ ×ک×¨× ×–×§×¦×™×” ×‍×،×•×’ referral_bonus_slha.
+        ×‍×—×–×™×¨ ×گ×ھ ×،×›×•×‌ ×”×‘×•× ×•×، ×©× ×–×§×£ ×œ×‍×¤× ×”.
         """
         reward = self._referral_reward_amount()
         if reward <= 0:
             return Decimal("0")
 
         if new_user_tid == referrer_tid:
-            # לא נותנים רפררל לעצמי
+            # ×œ×گ × ×•×ھ× ×™×‌ ×¨×¤×¨×¨×œ ×œ×¢×¦×‍×™
             return Decimal("0")
 
         db = self._db()
@@ -355,21 +374,21 @@ class InvestorWalletBot:
             if not referrer or not new_user:
                 return Decimal("0")
 
-            # עדכון SLHA balance – מפנה
+            # ×¢×“×›×•×ں SLHA balance â€“ ×‍×¤× ×”
             current_ref = getattr(referrer, "slha_balance", None)
             if current_ref is None:
                 referrer.slha_balance = reward
             else:
                 referrer.slha_balance = current_ref + reward
 
-            # עדכון SLHA balance – משתמש חדש (אפשר לשנות ל־0 אם לא רוצים לתת לו)
+            # ×¢×“×›×•×ں SLHA balance â€“ ×‍×©×ھ×‍×© ×—×“×© (×گ×¤×©×¨ ×œ×©× ×•×ھ ×œض¾0 ×گ×‌ ×œ×گ ×¨×•×¦×™×‌ ×œ×ھ×ھ ×œ×•)
             current_new = getattr(new_user, "slha_balance", None)
             if current_new is None:
                 new_user.slha_balance = reward
             else:
                 new_user.slha_balance = current_new + reward
 
-            # לוג ב-Transaction (amount_slh=0 – זה לוג בלבד עבור SLHA)
+            # ×œ×•×’ ×‘-Transaction (amount_slh=0 â€“ ×–×” ×œ×•×’ ×‘×œ×‘×“ ×¢×‘×•×¨ SLHA)
             tx = models.Transaction(
                 tx_type="referral_bonus_slha",
                 from_user=None,
@@ -393,7 +412,7 @@ class InvestorWalletBot:
         reward: Decimal,
     ) -> None:
         """
-        שולח הודעה לקבוצת REFERRAL_LOGS_CHAT_ID על רפררל חדש.
+        ×©×•×œ×— ×”×•×“×¢×” ×œ×§×‘×•×¦×ھ REFERRAL_LOGS_CHAT_ID ×¢×œ ×¨×¤×¨×¨×œ ×—×“×©.
         """
         chat_id = settings.REFERRAL_LOGS_CHAT_ID
         if not chat_id:
@@ -413,7 +432,7 @@ class InvestorWalletBot:
         )
 
         lines: list[str] = []
-        lines.append("🎁 New referral registered")
+        lines.append("ًںژپ New referral registered")
         lines.append(f"New user: {new_tg_user.id} ({uname})")
         lines.append(f"Referrer: {referrer_tid}")
         lines.append(f"Reward credited: {reward:.8f} SLHA (to referrer + new user)")
@@ -428,8 +447,8 @@ class InvestorWalletBot:
 
     def _coming_soon_text(self, tg_user, context, module_key: str) -> str:
         """
-        מחזיר טקסט 'בקרוב' רב־לשוני עבור מודול נתון.
-        module_key = אחד מהמפתחות:
+        ×‍×—×–×™×¨ ×ک×§×،×ک '×‘×§×¨×•×‘' ×¨×‘ض¾×œ×©×•× ×™ ×¢×‘×•×¨ ×‍×•×“×•×œ × ×ھ×•×ں.
+        module_key = ×گ×—×“ ×‍×”×‍×¤×ھ×—×•×ھ:
             MODULE_NAME_STAKING / MODULE_NAME_SIGNALS / MODULE_NAME_ACADEMY /
             MODULE_NAME_REFERRALS / MODULE_NAME_REPORTS / MODULE_NAME_PORTFOLIO
         """
@@ -497,10 +516,10 @@ class InvestorWalletBot:
 
     def _language_keyboard(self) -> InlineKeyboardMarkup:
         """
-        כפתורי בחירת שפה.
-        אנחנו בונים אותם מתוך i18n כדי שהטקסט יהיה נכון לכל שפה.
+        ×›×¤×ھ×•×¨×™ ×‘×—×™×¨×ھ ×©×¤×”.
+        ×گ× ×—× ×• ×‘×•× ×™×‌ ×گ×•×ھ×‌ ×‍×ھ×•×ڑ i18n ×›×“×™ ×©×”×ک×§×،×ک ×™×”×™×” × ×›×•×ں ×œ×›×œ ×©×¤×”.
         """
-        # נשתמש תמיד באנגלית להגדרת שמות הכפתורים (אחיד לכולם)
+        # × ×©×ھ×‍×© ×ھ×‍×™×“ ×‘×گ× ×’×œ×™×ھ ×œ×”×’×“×¨×ھ ×©×‍×•×ھ ×”×›×¤×ھ×•×¨×™×‌ (×گ×—×™×“ ×œ×›×•×œ×‌)
         btn_en = i18n.t("en", "LANGUAGE_BUTTON_EN")
         btn_he = i18n.t("en", "LANGUAGE_BUTTON_HE")
         btn_ru = i18n.t("en", "LANGUAGE_BUTTON_RU")
@@ -528,18 +547,18 @@ class InvestorWalletBot:
     async def cmd_start(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """חוויית הרשמה: מסך פתיחה + הסבר מה עושים עכשיו, עם i18n + רפררל."""
+        """×—×•×•×™×™×ھ ×”×¨×©×‍×”: ×‍×،×ڑ ×¤×ھ×™×—×” + ×”×،×‘×¨ ×‍×” ×¢×•×©×™×‌ ×¢×›×©×™×•, ×¢×‌ i18n + ×¨×¤×¨×¨×œ."""
         tg_user = update.effective_user
         lang = self._get_lang(tg_user, context)
 
-        # כאן משתמשים ב-is_new כדי לזהות משתמש חדש בלבד
+        # ×›×گ×ں ×‍×©×ھ×‍×©×™×‌ ×‘-is_new ×›×“×™ ×œ×–×”×•×ھ ×‍×©×ھ×‍×© ×—×“×© ×‘×œ×‘×“
         user, is_new = self._get_or_create_user_with_flag(tg_user)
 
-        # לוג לקבוצת לוגים רק אם המשתמש חדש
+        # ×œ×•×’ ×œ×§×‘×•×¦×ھ ×œ×•×’×™×‌ ×¨×§ ×گ×‌ ×”×‍×©×ھ×‍×© ×—×“×©
         if is_new:
             await self._log_new_investor(tg_user, user)
 
-        # --- REFERRAL: /start ref_XXXX (פועל רק בהרשמה הראשונה) ---
+        # --- REFERRAL: /start ref_XXXX (×¤×•×¢×œ ×¨×§ ×‘×”×¨×©×‍×” ×”×¨×گ×©×•× ×”) ---
         if is_new and context.args:
             raw_code = context.args[0]
             if isinstance(raw_code, str) and raw_code.startswith("ref_"):
@@ -625,9 +644,9 @@ class InvestorWalletBot:
     async def cmd_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """תפריט הכפתורים הראשי למשקיע."""
+        """×ھ×¤×¨×™×ک ×”×›×¤×ھ×•×¨×™×‌ ×”×¨×گ×©×™ ×œ×‍×©×§×™×¢."""
         await update.message.reply_text(
-            "SLH Investor Menu – choose an action:",
+            "SLH Investor Menu â€“ choose an action:",
             reply_markup=self._main_menu_keyboard(),
         )
 
@@ -693,14 +712,14 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        שני מצבים:
-        1) /link_wallet -> שואל אותך לשלוח כתובת בהודעה הבאה
-        2) /link_wallet 0xABC... -> שומר מיד את הכתובת מהפקודה
+        ×©× ×™ ×‍×¦×‘×™×‌:
+        1) /link_wallet -> ×©×•×گ×œ ×گ×•×ھ×ڑ ×œ×©×œ×•×— ×›×ھ×•×‘×ھ ×‘×”×•×“×¢×” ×”×‘×گ×”
+        2) /link_wallet 0xABC... -> ×©×•×‍×¨ ×‍×™×“ ×گ×ھ ×”×›×ھ×•×‘×ھ ×‍×”×¤×§×•×“×”
         """
         tg_user = update.effective_user
         self._ensure_user(update)
 
-        # אם נשלחה כתובת בתוך הפקודה עצמה
+        # ×گ×‌ × ×©×œ×—×” ×›×ھ×•×‘×ھ ×‘×ھ×•×ڑ ×”×¤×§×•×“×” ×¢×¦×‍×”
         if context.args:
             addr = context.args[0].strip()
             if not addr.startswith("0x") or len(addr) < 20:
@@ -727,7 +746,7 @@ class InvestorWalletBot:
             context.user_data["state"] = None
             return
 
-        # מצב רגיל – מבקש כתובת בהודעה הבאה
+        # ×‍×¦×‘ ×¨×’×™×œ â€“ ×‍×‘×§×© ×›×ھ×•×‘×ھ ×‘×”×•×“×¢×” ×”×‘×گ×”
         context.user_data["state"] = STATE_AWAITING_BNB_ADDRESS
         await update.message.reply_text(
             "Please send your BNB address (BSC network, usually starts with 0x...)."
@@ -795,7 +814,7 @@ class InvestorWalletBot:
                 "This reflects allocations recorded for you inside the system."
             )
             lines.append(
-                "There is no redemption yet – only future usage inside the ecosystem."
+                "There is no redemption yet â€“ only future usage inside the ecosystem."
             )
 
             await update.message.reply_text("\n".join(lines))
@@ -805,7 +824,7 @@ class InvestorWalletBot:
     async def cmd_whoami(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """נותן חוויית "אני רשום במערכת" + מציג גם SLHA."""
+        """× ×•×ھ×ں ×—×•×•×™×™×ھ "×گ× ×™ ×¨×©×•×‌ ×‘×‍×¢×¨×›×ھ" + ×‍×¦×™×’ ×’×‌ SLHA."""
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -856,7 +875,7 @@ class InvestorWalletBot:
     async def cmd_summary(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """דשבורד משקיע במסך אחד – כולל SLHA."""
+        """×“×©×‘×•×¨×“ ×‍×©×§×™×¢ ×‘×‍×،×ڑ ×گ×—×“ â€“ ×›×•×œ×œ SLHA."""
         db = self._db()
         try:
             tg_user = update.effective_user
@@ -940,7 +959,7 @@ class InvestorWalletBot:
                 onchain_bnb is not None or onchain_slh is not None
             ):
                 lines.append(
-                    "On-Chain (BNB Chain) – based on your BNB address:"
+                    "On-Chain (BNB Chain) â€“ based on your BNB address:"
                 )
                 if onchain_bnb is not None:
                     lines.append(f"- BNB: {onchain_bnb:.6f} BNB")
@@ -988,7 +1007,7 @@ class InvestorWalletBot:
     async def cmd_docs(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """קישור למסמכי ה-DOCS הרשמיים (README למשקיעים)."""
+        """×§×™×©×•×¨ ×œ×‍×،×‍×›×™ ×”-DOCS ×”×¨×©×‍×™×™×‌ (README ×œ×‍×©×§×™×¢×™×‌)."""
         if not settings.DOCS_URL:
             await update.message.reply_text(
                 "Investor docs URL is not configured yet.\n"
@@ -1016,8 +1035,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        מודול סטייקינג – כרגע placeholder עם הודעת 'בקרוב' בכל השפות.
-        בהמשך נחבר לכאן מנוע סטייקינג אמיתי (on/off-chain).
+        ×‍×•×“×•×œ ×،×ک×™×™×§×™× ×’ â€“ ×›×¨×’×¢ placeholder ×¢×‌ ×”×•×“×¢×ھ '×‘×§×¨×•×‘' ×‘×›×œ ×”×©×¤×•×ھ.
+        ×‘×”×‍×©×ڑ × ×—×‘×¨ ×œ×›×گ×ں ×‍× ×•×¢ ×،×ک×™×™×§×™× ×’ ×گ×‍×™×ھ×™ (on/off-chain).
         """
         tg_user = update.effective_user
         _ = self._ensure_user(update)
@@ -1028,8 +1047,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        מודול אותות מסחר – placeholder.
-        בהמשך: חיבור ל-API/AI שייתן סיגנלים לפי פרופיל המשקיע.
+        ×‍×•×“×•×œ ×گ×•×ھ×•×ھ ×‍×،×—×¨ â€“ placeholder.
+        ×‘×”×‍×©×ڑ: ×—×™×‘×•×¨ ×œ-API/AI ×©×™×™×ھ×ں ×،×™×’× ×œ×™×‌ ×œ×¤×™ ×¤×¨×•×¤×™×œ ×”×‍×©×§×™×¢.
         """
         tg_user = update.effective_user
         _ = self._ensure_user(update)
@@ -1040,8 +1059,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        אקדמיית SLH – placeholder.
-        בהמשך: תכני לימוד, קורסים, 'שיעור ליום' וכו'.
+        ×گ×§×“×‍×™×™×ھ SLH â€“ placeholder.
+        ×‘×”×‍×©×ڑ: ×ھ×›× ×™ ×œ×™×‍×•×“, ×§×•×¨×،×™×‌, '×©×™×¢×•×¨ ×œ×™×•×‌' ×•×›×•'.
         """
         tg_user = update.effective_user
         _ = self._ensure_user(update)
@@ -1052,10 +1071,10 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        תוכנית הפניות – עכשיו LIVE:
-        - קישור אישי: https://t.me/<bot>?start=ref_<telegram_id>
-        - ספירת referrals
-        - הצגת יתרת SLHA
+        ×ھ×•×›× ×™×ھ ×”×¤× ×™×•×ھ â€“ ×¢×›×©×™×• LIVE:
+        - ×§×™×©×•×¨ ×گ×™×©×™: https://t.me/<bot>?start=ref_<telegram_id>
+        - ×،×¤×™×¨×ھ referrals
+        - ×”×¦×’×ھ ×™×ھ×¨×ھ SLHA
         """
         db = self._db()
         try:
@@ -1066,7 +1085,7 @@ class InvestorWalletBot:
                 username=tg_user.username,
             )
 
-            # קבלת username של הבוט לצורך קישור אישי
+            # ×§×‘×œ×ھ username ×©×œ ×”×‘×•×ک ×œ×¦×•×¨×ڑ ×§×™×©×•×¨ ×گ×™×©×™
             bot_username = None
             try:
                 if self.bot and self.bot.username:
@@ -1078,11 +1097,11 @@ class InvestorWalletBot:
                 logger.warning("Failed to get bot username: %s", e)
 
             if not bot_username:
-                link = "Unavailable – bot username not resolved yet."
+                link = "Unavailable â€“ bot username not resolved yet."
             else:
                 link = f"https://t.me/{bot_username}?start=ref_{tg_user.id}"
 
-            # סטטיסטיקות רפררלים – לפי Transactions מסוג referral_bonus_slha
+            # ×،×ک×ک×™×،×ک×™×§×•×ھ ×¨×¤×¨×¨×œ×™×‌ â€“ ×œ×¤×™ Transactions ×‍×،×•×’ referral_bonus_slha
             txs = (
                 db.query(models.Transaction)
                 .filter(
@@ -1095,7 +1114,7 @@ class InvestorWalletBot:
             referrals_count = len(txs)
             reward_per = self._referral_reward_amount()
 
-            # יתרת SLHA בפועל – מהטבלה
+            # ×™×ھ×¨×ھ SLHA ×‘×¤×•×¢×œ â€“ ×‍×”×ک×‘×œ×”
             slha_balance = getattr(user, "slha_balance", None)
             if slha_balance is None:
                 slha_balance = Decimal("0")
@@ -1104,33 +1123,33 @@ class InvestorWalletBot:
 
             if lang == "he":
                 lines: list[str] = []
-                lines.append("תוכנית הפניות – SLH Global Investments")
+                lines.append("×ھ×•×›× ×™×ھ ×”×¤× ×™×•×ھ â€“ SLH Global Investments")
                 lines.append("")
-                lines.append("זהו הקישור האישי שלך לשיתוף (חברים, משפחה, לקוחות):")
+                lines.append("×–×”×• ×”×§×™×©×•×¨ ×”×گ×™×©×™ ×©×œ×ڑ ×œ×©×™×ھ×•×£ (×—×‘×¨×™×‌, ×‍×©×¤×—×”, ×œ×§×•×—×•×ھ):")
                 lines.append(link)
                 lines.append("")
-                lines.append(f"מספר מצטרפים שזוהו דרך הקישור שלך: {referrals_count}")
+                lines.append(f"×‍×،×¤×¨ ×‍×¦×ک×¨×¤×™×‌ ×©×–×•×”×• ×“×¨×ڑ ×”×§×™×©×•×¨ ×©×œ×ڑ: {referrals_count}")
                 lines.append(
-                    f"יתרת SLHA פנימית (נקודות מערכת): {slha_balance:.8f} SLHA"
+                    f"×™×ھ×¨×ھ SLHA ×¤× ×™×‍×™×ھ (× ×§×•×“×•×ھ ×‍×¢×¨×›×ھ): {slha_balance:.8f} SLHA"
                 )
                 lines.append("")
                 lines.append(
-                    f"כרגע, כל מצטרף דרך הקישור מזכה ב-{reward_per:.8f} SLHA "
-                    f"(≈ 1 ₪ נומינלי) – מחולק גם למפנה וגם למצטרף."
+                    f"×›×¨×’×¢, ×›×œ ×‍×¦×ک×¨×£ ×“×¨×ڑ ×”×§×™×©×•×¨ ×‍×–×›×” ×‘-{reward_per:.8f} SLHA "
+                    f"(â‰ˆ 1 â‚ھ × ×•×‍×™× ×œ×™) â€“ ×‍×—×•×œ×§ ×’×‌ ×œ×‍×¤× ×” ×•×’×‌ ×œ×‍×¦×ک×¨×£."
                 )
                 lines.append("")
                 lines.append(
-                    "הנקודות הן Off-Chain וישמשו בהמשך לסטייקינג, הטבות, "
-                    "גישה למודולים מתקדמים ול-AI Trading Tutor."
+                    "×”× ×§×•×“×•×ھ ×”×ں Off-Chain ×•×™×©×‍×©×• ×‘×”×‍×©×ڑ ×œ×،×ک×™×™×§×™× ×’, ×”×ک×‘×•×ھ, "
+                    "×’×™×©×” ×œ×‍×•×“×•×œ×™×‌ ×‍×ھ×§×“×‍×™×‌ ×•×œ-AI Trading Tutor."
                 )
                 lines.append("")
                 lines.append(
-                    "ככל שתשתף יותר ותבנה רשת משקיעים סביבך, כך תוכל/י לפתוח "
-                    "עוד שכבות באקו-סיסטם של SLH."
+                    "×›×›×œ ×©×ھ×©×ھ×£ ×™×•×ھ×¨ ×•×ھ×‘× ×” ×¨×©×ھ ×‍×©×§×™×¢×™×‌ ×،×‘×™×‘×ڑ, ×›×ڑ ×ھ×•×›×œ/×™ ×œ×¤×ھ×•×— "
+                    "×¢×•×“ ×©×›×‘×•×ھ ×‘×گ×§×•-×،×™×،×ک×‌ ×©×œ SLH."
                 )
             else:
                 lines = []
-                lines.append("Referral Program – SLH Global Investments")
+                lines.append("Referral Program â€“ SLH Global Investments")
                 lines.append("")
                 lines.append(
                     "Your personal invite link (share with friends, family, clients):"
@@ -1144,7 +1163,7 @@ class InvestorWalletBot:
                 lines.append("")
                 lines.append(
                     f"Each new investor via your link currently grants "
-                    f"{reward_per:.8f} SLHA (≈ 1 ILS nominal value), "
+                    f"{reward_per:.8f} SLHA (â‰ˆ 1 ILS nominal value), "
                     "credited both to you and to the new investor."
                 )
                 lines.append("")
@@ -1166,8 +1185,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        דוחות משקיעים – placeholder.
-        בהמשך: PDF/HTML, סיכומי חודש, תשואות וכו'.
+        ×“×•×—×•×ھ ×‍×©×§×™×¢×™×‌ â€“ placeholder.
+        ×‘×”×‍×©×ڑ: PDF/HTML, ×،×™×›×•×‍×™ ×—×•×“×©, ×ھ×©×•×گ×•×ھ ×•×›×•'.
         """
         tg_user = update.effective_user
         _ = self._ensure_user(update)
@@ -1178,8 +1197,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        פורטפוליו מתקדם – placeholder.
-        בהמשך: גרפים, פילוח, ניתוח סיכונים.
+        ×¤×•×¨×ک×¤×•×œ×™×• ×‍×ھ×§×“×‌ â€“ placeholder.
+        ×‘×”×‍×©×ڑ: ×’×¨×¤×™×‌, ×¤×™×œ×•×—, × ×™×ھ×•×— ×،×™×›×•× ×™×‌.
         """
         tg_user = update.effective_user
         _ = self._ensure_user(update)
@@ -1261,8 +1280,8 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        מציג עד 10 הטרנזקציות האחרונות שבהן המשתמש מעורב (Off-Chain).
-        עובד מול Transaction.from_user / Transaction.to_user (מזהי טלגרם).
+        ×‍×¦×™×’ ×¢×“ 10 ×”×ک×¨× ×–×§×¦×™×•×ھ ×”×گ×—×¨×•× ×•×ھ ×©×‘×”×ں ×”×‍×©×ھ×‍×© ×‍×¢×•×¨×‘ (Off-Chain).
+        ×¢×•×‘×“ ×‍×•×œ Transaction.from_user / Transaction.to_user (×‍×–×”×™ ×ک×œ×’×¨×‌).
         """
         db = self._db()
         try:
@@ -1323,7 +1342,7 @@ class InvestorWalletBot:
                     direction = "OTHER"
 
                 lines.append(
-                    f"[{ts}] {direction} – {amount:.4f} SLH (type={tx_type}, id={tx.id})"
+                    f"[{ts}] {direction} â€“ {amount:.4f} SLH (type={tx_type}, id={tx.id})"
                 )
 
             await update.message.reply_text("\n".join(lines))
@@ -1347,7 +1366,7 @@ class InvestorWalletBot:
     async def cmd_send_slh(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """קיצור דרך: /send_slh <amount> <@username|user_id>"""
+        """×§×™×¦×•×¨ ×“×¨×ڑ: /send_slh <amount> <@username|user_id>"""
         self._ensure_user(update)
 
         parts = (update.message.text or "").split()
@@ -1426,7 +1445,7 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        אדמין בלבד: טעינת SLH למשתמש לפי ID.
+        ×گ×“×‍×™×ں ×‘×œ×‘×“: ×ک×¢×™× ×ھ SLH ×œ×‍×©×ھ×‍×© ×œ×¤×™ ID.
         /admin_credit <telegram_id> <amount>
         """
         if not self._is_admin(update.effective_user.id):
@@ -1475,20 +1494,20 @@ class InvestorWalletBot:
     async def cmd_admin_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """תפריט אדמין – זמין רק למזהה המוגדר ב-ADMIN_USER_ID."""
+        """×ھ×¤×¨×™×ک ×گ×“×‍×™×ں â€“ ×–×‍×™×ں ×¨×§ ×œ×‍×–×”×” ×”×‍×•×’×“×¨ ×‘-ADMIN_USER_ID."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
 
         await update.message.reply_text(
-            "SLH Admin Menu – tools for managing investor balances:",
+            "SLH Admin Menu â€“ tools for managing investor balances:",
             reply_markup=self._admin_menu_keyboard(),
         )
 
     async def cmd_admin_list_users(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """אדמין: רשימת המשתמשים במערכת + יתרות."""
+        """×گ×“×‍×™×ں: ×¨×©×™×‍×ھ ×”×‍×©×ھ×‍×©×™×‌ ×‘×‍×¢×¨×›×ھ + ×™×ھ×¨×•×ھ."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -1509,7 +1528,7 @@ class InvestorWalletBot:
                 return
 
             lines: list[str] = []
-            lines.append("Admin – Users (top 50 by SLH balance):")
+            lines.append("Admin â€“ Users (top 50 by SLH balance):")
             lines.append("")
 
             for u in users:
@@ -1518,7 +1537,7 @@ class InvestorWalletBot:
                 lines.append(
                     f"- ID {u.telegram_id} | @{u.username or 'N/A'} | "
                     f"{bal:.4f} SLH | tier={tier} | "
-                    f"BNB={u.bnb_address or '—'}"
+                    f"BNB={u.bnb_address or 'â€”'}"
                 )
 
             await update.message.reply_text("\n".join(lines))
@@ -1528,7 +1547,7 @@ class InvestorWalletBot:
     async def cmd_admin_ledger(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """אדמין: תצוגה גלובלית של ה-Ledger (עד 50 הטרנזקציות האחרונות)."""
+        """×گ×“×‍×™×ں: ×ھ×¦×•×’×” ×’×œ×•×‘×œ×™×ھ ×©×œ ×”-Ledger (×¢×“ 50 ×”×ک×¨× ×–×§×¦×™×•×ھ ×”×گ×—×¨×•× ×•×ھ)."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -1549,7 +1568,7 @@ class InvestorWalletBot:
                 return
 
             lines: list[str] = []
-            lines.append("Admin – Global Ledger (last 50 transactions):")
+            lines.append("Admin â€“ Global Ledger (last 50 transactions):")
             lines.append("")
 
             for tx in txs:
@@ -1568,7 +1587,7 @@ class InvestorWalletBot:
                     ts = "N/A"
 
                 lines.append(
-                    f"[{ts}] {tx_type} – {amount:.4f} SLH | "
+                    f"[{ts}] {tx_type} â€“ {amount:.4f} SLH | "
                     f"from={from_id or '-'} -> to={to_id or '-'} | id={tx.id}"
                 )
 
@@ -1581,13 +1600,13 @@ class InvestorWalletBot:
     async def cmd_ping(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """בדיקת חיים מהירה בקליינט."""
+        """×‘×“×™×§×ھ ×—×™×™×‌ ×‍×”×™×¨×” ×‘×§×œ×™×™× ×ک."""
         await update.message.reply_text("pong")
 
     async def cmd_admin_selftest(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """אדמין בלבד: מריץ self-test עמוק ומציג דו\"ח מצב."""
+        """×گ×“×‍×™×ں ×‘×œ×‘×“: ×‍×¨×™×¥ self-test ×¢×‍×•×§ ×•×‍×¦×™×’ ×“×•\"×— ×‍×¦×‘."""
         if not self._is_admin(update.effective_user.id):
             await update.message.reply_text("This command is admin-only.")
             return
@@ -1605,13 +1624,13 @@ class InvestorWalletBot:
             skipped = check.get("skipped", False)
 
             if ok and not skipped:
-                lines.append(f"✅ {name}")
+                lines.append(f"âœ… {name}")
             elif skipped:
                 reason = check.get("reason", "")
-                lines.append(f"⚪ {name} – skipped ({reason})")
+                lines.append(f"âڑھ {name} â€“ skipped ({reason})")
             else:
                 err = check.get("error", "unknown error")
-                lines.append(f"❌ {name} – {err}")
+                lines.append(f"â‌Œ {name} â€“ {err}")
 
         await update.message.reply_text("\n".join(lines))
 
@@ -1619,9 +1638,9 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        מציג למשתמש תפריט בחירת שפה.
-        בשלב הזה אנחנו שומרים את ההעדפה בזיכרון (context.user_data),
-        ואח"כ נוכל להעביר את כל ההודעות להשתמש ב-i18n.
+        ×‍×¦×™×’ ×œ×‍×©×ھ×‍×© ×ھ×¤×¨×™×ک ×‘×—×™×¨×ھ ×©×¤×”.
+        ×‘×©×œ×‘ ×”×–×” ×گ× ×—× ×• ×©×•×‍×¨×™×‌ ×گ×ھ ×”×”×¢×“×¤×” ×‘×–×™×›×¨×•×ں (context.user_data),
+        ×•×گ×—"×› × ×•×›×œ ×œ×”×¢×‘×™×¨ ×گ×ھ ×›×œ ×”×”×•×“×¢×•×ھ ×œ×”×©×ھ×‍×© ×‘-i18n.
         """
         tg_user = update.effective_user
         lang = self._get_lang(tg_user, context)
@@ -1660,7 +1679,7 @@ class InvestorWalletBot:
     async def cb_main_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """כפתורי MENU_* עבור המשקיע."""
+        """×›×¤×ھ×•×¨×™ MENU_* ×¢×‘×•×¨ ×”×‍×©×§×™×¢."""
         query = update.callback_query
         await query.answer()
         data = query.data
@@ -1686,12 +1705,12 @@ class InvestorWalletBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """
-        Callback של בחירת שפה – LANG_en / LANG_he / LANG_ru / LANG_es / LANG_ar.
-        מעדכן context.user_data["lang"] ומציג הודעת אישור.
+        Callback ×©×œ ×‘×—×™×¨×ھ ×©×¤×” â€“ LANG_en / LANG_he / LANG_ru / LANG_es / LANG_ar.
+        ×‍×¢×“×›×ں context.user_data["lang"] ×•×‍×¦×™×’ ×”×•×“×¢×ھ ×گ×™×©×•×¨.
         """
         query = update.callback_query
         await query.answer()
-        data = query.data  # למשל "LANG_he"
+        data = query.data  # ×œ×‍×©×œ "LANG_he"
 
         parts = data.split("_", 1)
         if len(parts) != 2:
@@ -1701,7 +1720,7 @@ class InvestorWalletBot:
         lang = i18n.normalize_lang(raw_lang)
         context.user_data["lang"] = lang
 
-        # הודעת אישור בשפה הנבחרת
+        # ×”×•×“×¢×ھ ×گ×™×©×•×¨ ×‘×©×¤×” ×”× ×‘×—×¨×ھ
         if lang == "he":
             confirm = i18n.t(lang, "LANGUAGE_SET_CONFIRM_HE")
         elif lang == "ru":
@@ -1716,7 +1735,7 @@ class InvestorWalletBot:
     async def cb_admin_menu(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """כפתורי ADMIN_* עבור אדמין."""
+        """×›×¤×ھ×•×¨×™ ADMIN_* ×¢×‘×•×¨ ×گ×“×‍×™×ں."""
         query = update.callback_query
         await query.answer()
         data = query.data
@@ -1852,7 +1871,7 @@ class InvestorWalletBot:
                 )
                 return
 
-            # no special state – הודעה חופשית
+            # no special state â€“ ×”×•×“×¢×” ×—×•×¤×©×™×ھ
             lang = self._get_lang(tg_user, context)
             fallback = i18n.t(lang, "GENERIC_UNKNOWN_COMMAND")
             await update.message.reply_text(fallback)
