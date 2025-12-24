@@ -1,18 +1,26 @@
 import secrets
 from decimal import Decimal
-from pydantic_settings import BaseSettings
+
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
     # --- חובה לבוט ---
     BOT_TOKEN: str | None = None
-    DATABASE_URL: str | None = None
+
+    # Accept DATABASE_URL (common) AND database_url (legacy)
+    DATABASE_URL: str | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "database_url"))
+
     SECRET_KEY: str = secrets.token_urlsafe(32)
-
-    # אדמין (לפקודות admin_credit / admin_menu וכו')
     ADMIN_USER_ID: str | None = None
-
-    # כתובת בסיס ל־Webhook (למשל: https://tease-production.up.railway.app)
     WEBHOOK_URL: str | None = None
 
     # --- ארנק קהילתי / טוקן ---
@@ -21,8 +29,6 @@ class Settings(BaseSettings):
 
     SLH_TOKEN_ADDRESS: str | None = None
     SLH_TOKEN_DECIMALS: int = 18
-
-    # מחיר נומינלי ל-SLH בשקלים
     SLH_PRICE_NIS: Decimal = Decimal("444")
 
     # --- BSC / On-chain ---
@@ -44,11 +50,12 @@ class Settings(BaseSettings):
 
     # --- שפות ---
     DEFAULT_LANGUAGE: str = "en"
-    SUPPORTED_LANGUAGES: str | None = None  # למשל: "en,he,ru,es"
+    SUPPORTED_LANGUAGES: str | None = None
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    @property
+    def database_url(self) -> str | None:
+        # stable accessor for older code
+        return self.DATABASE_URL
 
 
 settings = Settings()
