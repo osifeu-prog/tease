@@ -8,3 +8,6 @@ BOT_FACTORY_SNAPSHOT.txt
 
 .venv/
 
+
+.env
+

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # אדמין
     ADMIN_USER_ID: str | None = None
 
-    # Webhook
+    # כתובת בסיס לWebhook (למשל: https://xxx.up.railway.app)
     WEBHOOK_URL: str | None = None
 
     # --- ארנק קהילתי / טוקן ---
