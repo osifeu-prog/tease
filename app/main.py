@@ -1,5 +1,5 @@
-﻿BUILD_ID = os.getenv("BUILD_ID", "local-dev")
 import os
+BUILD_ID = os.getenv("BUILD_ID", "local-dev")
 
 # --- SLH SAFETY: ignore non-private updates at webhook (groups/channels) ---
 def _slh_is_private_update(payload: dict) -> bool:
