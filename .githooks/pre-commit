@@ -9,7 +9,7 @@ def read_from_index(path: str) -> bytes:
     return p.stdout if p.returncode == 0 else b""
 
 binary_ext = re.compile(r"\.(png|jpg|jpeg|gif|ico|pdf|zip|woff2?)$", re.I)
-bad_conf = re.compile(rb"<<<<<<<|=======|>>>>>>>")
+bad_conf = re.compile(rb"^(<<<<<<<|=======|>>>>>>>)", re.M)
 
 paths = subprocess.run(
     ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
