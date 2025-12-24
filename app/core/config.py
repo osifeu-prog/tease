@@ -16,11 +16,19 @@ class Settings(BaseSettings):
     # --- חובה לבוט ---
     BOT_TOKEN: str | None = None
 
-    # Accept DATABASE_URL (common) AND database_url (legacy)
-    DATABASE_URL: str | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "database_url"))
+    # canonical: DATABASE_URL
+    # also accept: database_url (legacy)
+    DATABASE_URL: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL", "database_url"),
+    )
 
     SECRET_KEY: str = secrets.token_urlsafe(32)
+
+    # אדמין
     ADMIN_USER_ID: str | None = None
+
+    # Webhook
     WEBHOOK_URL: str | None = None
 
     # --- ארנק קהילתי / טוקן ---
@@ -50,11 +58,11 @@ class Settings(BaseSettings):
 
     # --- שפות ---
     DEFAULT_LANGUAGE: str = "en"
-    SUPPORTED_LANGUAGES: str | None = None
+    SUPPORTED_LANGUAGES: str | None = None  # "en,he,ru,es"
 
     @property
     def database_url(self) -> str | None:
-        # stable accessor for older code
+        # backward compatible accessor
         return self.DATABASE_URL
 
 
