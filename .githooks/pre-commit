@@ -1,0 +1,23 @@
+#!/usr/bin/env pwsh
+$ErrorActionPreference = "Stop"
+
+# Fail on merge-conflict markers OR U+FEFF in staged files
+$files = git diff --cached --name-only --diff-filter=ACM
+foreach ($f in $files) {
+  if (-not (Test-Path $f)) { continue }
+  if ($f -match '\.(png|jpg|jpeg|gif|ico|pdf|zip|woff2?)$') { continue }
+
+  $txt = Get-Content $f -Raw -ErrorAction SilentlyContinue
+  if ($null -eq $txt) { continue }
+
+  if ($txt -match '<<<<<<<|=======|>>>>>>>') {
+    Write-Host "ERROR: Found merge-conflict markers in $f" -ForegroundColor Red
+    exit 1
+  }
+
+  if ($txt.ToCharArray() | Where-Object { [int][char]$_ -eq 65279 } | Select-Object -First 1) {
+    Write-Host "ERROR: Found U+FEFF (BOM/ZWNBSP) in $f" -ForegroundColor Red
+    exit 1
+  }
+}
+exit 0
