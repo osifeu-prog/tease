@@ -1,2 +1,7 @@
 __pycache__/
 *.py[cod]
+
+# local snapshots
+BOT_FACTORY_SNAPSHOT.txt
+*_SNAPSHOT.txt
+
